@@ -72,7 +72,7 @@ pre-commit, re-render — determinism reproduces them exactly.
 
 ## 6. Pointers
 
-- `docs/tasks/ongoing/03-world-render/03-world-render-spec.md` §7.1 — the ritual's
+- `docs/tasks/completed/03-world-render/03-world-render-spec.md` §7.1 — the ritual's
   origin (Unit 03's four poses + checklist); Unit 05's chills gate reuses this
   mechanism per its brief.
 - [`render-doctrine.md`](./render-doctrine.md) — deterministic presentation (§3) and
