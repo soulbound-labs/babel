@@ -3,6 +3,46 @@
 _An interactive 3D implementation of the Library of Babel, true to the vision of
 Jorge Luis Borges._
 
+## Substrate — how work moves through this repo
+
+Babel is a **substrate-governed** repository. On top of the app stack sits a small,
+stack-agnostic kernel that turns intent into gated, reviewable change:
+
+- **[AGENTS.md](./AGENTS.md)** (with `CLAUDE.md` as a symlink) — the canonical
+  root context every agent reads first.
+- **[substrate.yaml](./substrate.yaml)** — the _declared_ verification gate. The
+  engine runs exactly these, never guesses: `compile → pnpm app:compile`,
+  `test → pnpm test:unit:ci`, `lint → pnpm lint`.
+- **[docs/doctrine/](./docs/doctrine/)** — the binding rules (architecture, frozen
+  contracts, agent conduct), enforced by `doctrine-lint` in the pre-commit hook + CI.
+- **[docs/protocol/sdd/](./docs/protocol/sdd/)** — the spec-driven-development format
+  that briefs and specs follow.
+
+### The core command lifecycle (every human developer should know)
+
+Slash commands are run in Claude Code; the human owns the brief, the approvals, and
+the merge.
+
+1. **Write a brief** — a plain-language `docs/tasks/ongoing/<feature>/<feature>-brief.md`
+   describing _what and why_ (not how).
+2. **`/substrate:architect-spec <brief>`** — Socratic Q&A + per-doctrine analysis
+   compose the brief into an executable, multi-phase **spec** with verification gates.
+3. **`/substrate:execute <spec>`** — walks Phase → Step → Verify → Gate, **pausing at
+   each phase gate for your approval**. Best run in a fresh session.
+4. **`/substrate:synthesize-session`** — after execute archives the spec, captures the
+   session's non-obvious learning back into doctrine.
+
+Shortcuts off the main loop:
+
+- **`/substrate:quick-spec "<objective>"`** — small, well-scoped change: plan → implement
+  → verify → commit, skipping the full architect pass.
+- **`/substrate:diagnose "<error>"`** — known failure: root-cause → fix → verify the gate
+  _and_ that the error no longer reproduces → commit.
+- **`/substrate:add-doctrine <name>`** — grow the rulebook when a new area needs governance.
+
+Every path ends the same way: the `substrate.yaml` gate must be **green**, and the
+pre-commit hook re-runs `doctrine-lint` before any commit lands.
+
 ## Vision
 
 Babel is a deterministic **Library of Babel** rendered as a flat-screen 3D art
