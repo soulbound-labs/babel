@@ -34,6 +34,12 @@ Every change is bound to the doctrines registered in `docs/doctrine/doctrine-man
 - `docs/doctrine/tooling-doctrine.md` — the no-JS toolchain: TypeScript everywhere, scripts run via
   `tsx` (never `node`), TS build/ESLint config (via `jiti`), bash reserved for the zero-dep kernel,
   and the gate declared in `substrate.yaml`. Read before adding a script, config, or dependency.
+- `docs/doctrine/coordinate-doctrine.md` — the ℤ² lattice: `bigint` coordinates, the 4-move algebra
+  (path-independent `reduce`), coordinate `hash` identity, and the frozen origin-centred Ulam-shell
+  pairing `ℤ²↔ℕ` with exact bigint `isqrt`. Read before touching `src/domain/coordinates/**` or `pairing.ts`.
+- `docs/doctrine/content-doctrine.md` — the deterministic library cipher: the `LineAddress→Glyph[80]`
+  bijection over 29⁸⁰, the balanced Feistel (`M=H²`), the `@noble/hashes` boundary carve-out, the
+  _impossible_ depth-entropy seam, and the frozen golden vector. Read before touching `src/domain/content/**`.
 
 Add your own stack/domain doctrines with `/substrate:add-doctrine`; each self-registers in the manifest.
 

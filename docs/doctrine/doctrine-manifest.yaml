@@ -36,3 +36,46 @@ doctrines:
     summary: The no-JS toolchain — TypeScript everywhere, scripts run via tsx (never node), TS build/eslint config (jiti), bash reserved for the zero-dep kernel, gate declared in substrate.yaml.
     triggers: [script, tsx, build, config, eslint, tsconfig, dependency, no-js, tooling]
     layer-hint: infra
+
+  - id: coordinate
+    path: docs/doctrine/coordinate-doctrine.md
+    pointers: [AGENTS.md]
+    summary: The ℤ² lattice — bigint coordinates, the 4-move algebra (path-independent reduce), coordinate hash identity, and the frozen origin-centred Ulam-shell pairing ℤ²↔ℕ with exact bigint isqrt.
+    triggers:
+      [
+        coordinate,
+        lattice,
+        move,
+        reduce,
+        hash,
+        pairing,
+        unpair,
+        ulam,
+        isqrt,
+        floor,
+        origin,
+        floating origin,
+      ]
+    layer-hint: domain
+
+  - id: content
+    path: docs/doctrine/content-doctrine.md
+    pointers: [AGENTS.md]
+    summary: The deterministic library cipher — the LineAddress→Glyph[80] bijection over 29⁸⁰, the balanced Feistel (M=H²), the @noble/hashes boundary carve-out, the impossible depth-entropy seam, and the frozen golden vector.
+    triggers:
+      [
+        content,
+        cipher,
+        feistel,
+        permutation,
+        alphabet,
+        base29,
+        glyph,
+        line,
+        inverse,
+        golden vector,
+        babel key,
+        library drift,
+        codec,
+      ]
+    layer-hint: domain
