@@ -5,7 +5,7 @@
  *
  * Boundary contract (§2.2): this file lives in `render/` and imports ONLY
  * @react-three/fiber / drei / three. It MUST NOT import from @/domain or
- * @/application — Unit 02 cannot accidentally couple through the placeholder.
+ * @/ports — Unit 02 cannot accidentally couple through the placeholder.
  */
 import { Canvas, useFrame } from '@react-three/fiber';
 import { useRef } from 'react';

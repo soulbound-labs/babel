@@ -2,7 +2,7 @@
 
 Architecture Decision Records capture _why_ a load-bearing decision was made.
 Any change to a [frozen contract](./01-frozen-contracts.md) (the `domain/` or
-`application/` public surface) requires one.
+`ports/` public surface) requires one.
 
 Copy the block below to `docs/doctrine/adr/NNNN-short-title.md` (zero-padded,
 incrementing), fill it in, and open it for review **before** editing the frozen

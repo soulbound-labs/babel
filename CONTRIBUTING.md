@@ -35,8 +35,8 @@ let these branches avoid touching each other's subsystems.
 
 ## Changing a frozen surface (ADR-gated)
 
-The `domain/` and `application/` public surfaces
-(`src/domain/index.ts`, `src/application/ports`) are **frozen contracts**. Every
+The `domain/` and `ports/` public surfaces
+(`src/domain/index.ts`, `src/ports`) are **frozen contracts**. Every
 other unit imports them, so they change **only via an ADR** — see
 [docs/doctrine/01-frozen-contracts.md](./docs/doctrine/01-frozen-contracts.md)
 and the [ADR template](./docs/doctrine/02-adr-template.md). Everything under
@@ -45,7 +45,7 @@ within its layer.
 
 ## The one rule that fails CI on purpose
 
-Nothing under `src/domain/` (or `src/application/`) may import a framework
+Nothing under `src/domain/` (or `src/ports/`) may import a framework
 (react, three, convex). This keeps the deterministic core pure and is enforced
-by `boundaries/dependencies` in `eslint.config.js`. See
+by `boundaries/dependencies` in `eslint.config.ts`. See
 [docs/doctrine/00-architecture.md](./docs/doctrine/00-architecture.md).

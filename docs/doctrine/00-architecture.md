@@ -19,28 +19,28 @@ We do not keep this pure by asking nicely in code review. We keep it pure with a
 ## The layers
 
 ```
-app  →  render / audio  →  application (ports)  →  domain
-adapters  ─────────────────────────────────────────┘
+app  →  render / audio  →  ports  →  domain
+adapters  ───────────────────────────┘
 ```
 
-| Layer              | Responsibility                              | May import                                  | May NOT import                                                                 |
-| ------------------ | ------------------------------------------- | ------------------------------------------- | ------------------------------------------------------------------------------ |
-| `domain`           | Pure lattice algebra + content cipher       | _(nothing outside domain)_                  | application, adapters, render, audio, app, **react, three, convex, node core** |
-| `application`      | Use-case ports (interfaces only)            | domain                                      | adapters, render, audio, app, **frameworks**                                   |
-| `adapters`         | Port implementations (in-memory, Convex, …) | domain, application                         | render, audio, app                                                             |
-| `render` / `audio` | R3F scene / positional audio                | domain, application, third-party, node core | adapters (reach via ports), app, **convex directly**                           |
-| `app`              | React shell + entry + providers             | everything inward                           | —                                                                              |
+| Layer              | Responsibility                              | May import                            | May NOT import                                                           |
+| ------------------ | ------------------------------------------- | ------------------------------------- | ------------------------------------------------------------------------ |
+| `domain`           | Pure lattice algebra + content cipher       | _(nothing outside domain)_            | ports, adapters, render, audio, app, **react, three, convex, node core** |
+| `ports`            | Use-case ports (interfaces only)            | domain                                | adapters, render, audio, app, **frameworks**                             |
+| `adapters`         | Port implementations (in-memory, Convex, …) | domain, ports                         | render, audio, app                                                       |
+| `render` / `audio` | R3F scene / positional audio                | domain, ports, third-party, node core | adapters (reach via ports), app, **convex directly**                     |
+| `app`              | React shell + entry + providers             | everything inward                     | —                                                                        |
 
 The dependency arrows always point **inward**. Outer layers know about inner
 layers; inner layers never know about outer ones.
 
 ## Enforcement (not decoration)
 
-The matrix above is encoded in `eslint.config.js` via
+The matrix above is encoded in `eslint.config.ts` via
 `eslint-plugin-boundaries` (`boundaries/dependencies`), run with
 `checkAllOrigins: true` and `default: 'disallow'`. The pure core is granted
 _only_ narrow inward allows, so **any** framework/external import from
-`domain` or `application` is a lint error by omission — a stronger guarantee
+`domain` or `ports` is a lint error by omission — a stronger guarantee
 than an enumerated deny-list.
 
 A violating import **fails `pnpm lint`**, which **fails CI**. And because a lint
@@ -58,8 +58,7 @@ src/
 │   ├── coordinates/   reduce(), hash()
 │   ├── content/       line(), inverse()
 │   └── index.ts       the FROZEN public barrel
-├── application/
-│   └── ports/     interfaces only (ContentProvider, PresencePort, …)
+├── ports/         interfaces only (ContentProvider, PresencePort, …)
 ├── adapters/      port implementations
 ├── render/        R3F scene composition (placeholder in Unit 01)
 ├── audio/         positional audio bus (Unit 03)

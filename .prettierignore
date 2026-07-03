@@ -4,3 +4,10 @@ coverage/
 convex/_generated/
 pnpm-lock.yaml
 *.txt
+
+# Vendored substrate-kernel artifacts — keep their upstream formatting; not ours
+# to reflow (avoids churn every time the kernel is updated).
+docs/protocol/
+docs/doctrine/agents-doctrine.md
+docs/doctrine/agents-parallel-execution-doctrine.md
+substrate.yaml

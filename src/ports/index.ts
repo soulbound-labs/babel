@@ -1,5 +1,5 @@
 /**
- * Forward-declared application ports (§2.1) — INTERFACES ONLY, no
+ * Forward-declared ports (§2.1) — INTERFACES ONLY, no
  * implementations. These are frozen seams: downstream units provide adapters
  * that satisfy these shapes, so wiring them in is a swap, not a refactor.
  *

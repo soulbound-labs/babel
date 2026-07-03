@@ -7,7 +7,7 @@
  *
  * INVARIANT: nothing under src/domain/ may import framework code (react, three,
  * convex) or any outward layer. This is enforced as a lint error by
- * `boundaries/dependencies` (see eslint.config.js), proven live by
+ * `boundaries/dependencies` (see eslint.config.ts), proven live by
  * `pnpm verify:boundaries`, and explained in docs/doctrine/00-architecture.md.
  */
 export {};

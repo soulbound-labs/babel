@@ -29,3 +29,10 @@ doctrines:
     summary: Parallel-bead orchestration — single-writer tracker, integration branch + merge-on-green, file-disjoint waves, gate-before-close, two-stage gate, worktree hygiene.
     triggers: [parallel, worktree, wave, epic, integration branch, merge-on-green]
     layer-hint: cross-cutting
+
+  - id: tooling
+    path: docs/doctrine/tooling-doctrine.md
+    pointers: [AGENTS.md]
+    summary: The no-JS toolchain — TypeScript everywhere, scripts run via tsx (never node), TS build/eslint config (jiti), bash reserved for the zero-dep kernel, gate declared in substrate.yaml.
+    triggers: [script, tsx, build, config, eslint, tsconfig, dependency, no-js, tooling]
+    layer-hint: infra

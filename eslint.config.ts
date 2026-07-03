@@ -12,7 +12,7 @@ import prettier from 'eslint-config-prettier';
  * only reach inward. See docs/doctrine/00-architecture.md.
  *
  * We run with `checkAllOrigins: true` and `default: 'disallow'`, so the pure
- * core (`domain`/`application`) is granted ONLY narrow inward allows — every
+ * core (`domain`/`ports`) is granted ONLY narrow inward allows — every
  * external/core package import is therefore a violation by omission (a stronger,
  * enumeration-free guarantee than a deny-list of framework names). Outer layers
  * are explicitly re-granted external/core, with `convex` clawed back from
@@ -23,9 +23,9 @@ export default tseslint.config(
     ignores: ['dist/', 'coverage/', 'node_modules/', 'convex/_generated/', '**/*.txt'],
   },
 
-  // Base TS rules for our source + tests.
+  // Base TS rules for our source, tests, and executable scripts.
   {
-    files: ['src/**/*.{ts,tsx}', 'tests/**/*.{ts,tsx}'],
+    files: ['src/**/*.{ts,tsx}', 'tests/**/*.{ts,tsx}', 'scripts/**/*.ts'],
     extends: [tseslint.configs.recommended],
   },
 
@@ -45,7 +45,7 @@ export default tseslint.config(
         { type: 'render', pattern: 'src/render' },
         { type: 'audio', pattern: 'src/audio' },
         { type: 'adapters', pattern: 'src/adapters' },
-        { type: 'application', pattern: 'src/application' },
+        { type: 'ports', pattern: 'src/ports' },
         { type: 'domain', pattern: 'src/domain' },
       ],
     },
@@ -64,30 +64,30 @@ export default tseslint.config(
             // --- Inward layer matrix (local element → local element) ---
             { from: { type: 'domain' }, allow: { to: { type: 'domain' } } },
             {
-              from: { type: 'application' },
-              allow: { to: { type: ['domain', 'application'] } },
+              from: { type: 'ports' },
+              allow: { to: { type: ['domain', 'ports'] } },
             },
             {
               from: { type: 'adapters' },
-              allow: { to: { type: ['domain', 'application', 'adapters'] } },
+              allow: { to: { type: ['domain', 'ports', 'adapters'] } },
             },
             {
               from: { type: 'render' },
-              allow: { to: { type: ['domain', 'application', 'render'] } },
+              allow: { to: { type: ['domain', 'ports', 'render'] } },
             },
             {
               from: { type: 'audio' },
-              allow: { to: { type: ['domain', 'application', 'audio'] } },
+              allow: { to: { type: ['domain', 'ports', 'audio'] } },
             },
             {
               from: { type: 'app' },
               allow: {
-                to: { type: ['domain', 'application', 'adapters', 'render', 'audio', 'app'] },
+                to: { type: ['domain', 'ports', 'adapters', 'render', 'audio', 'app'] },
               },
             },
 
             // --- External/core packages ---
-            // domain & application get NO external grant → any framework import
+            // domain & ports get NO external grant → any framework import
             // (react/three/convex/node core) is a violation. This is the
             // deterministic-core invariant, enforced by omission.
             //
