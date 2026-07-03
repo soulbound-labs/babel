@@ -771,3 +771,36 @@ Update `docs/doctrine/01-frozen-contracts.md` to mark `src/domain/index.ts` as
 | Version | Date       | Changes                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
 | ------- | ---------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | 1.0.0   | 2026-07-03 | Initial spec, rewritten from first principles off the inspiration brief. Resolves: gate/port/script staleness (aligned to actual `package.json` + `src/ports/` + tsx); **removes the impossible depth-entropy Feistel seam** and relocates depth aesthetics to the render layer (§7.1); adds reverse round-trip (INV-11) and large-room pairing (INV-6) properties; adds forward `ROOM_MAX` guard (E7); reframes injectivity as a bijection tripwire (INV-13); pins `@noble/hashes` `sha2`/`hmac` subpaths. |
+
+---
+
+### Post-execution notes
+
+Recorded by `/substrate:synthesize-session` (2026-07-03). Deviations between what
+this spec prescribed and what actually shipped (commit `94dc037`):
+
+- **`@noble/hashes` import subpaths.** The spec (§11) specified `@noble/hashes/sha2`
+  and `@noble/hashes/hmac`. The installed major is **v2.2.0**, whose `exports` map
+  requires the **`.js` suffix**: `@noble/hashes/sha2.js` (`sha256`) and
+  `@noble/hashes/hmac.js` (`hmac`). Bare/`/sha256` subpaths throw
+  `ERR_PACKAGE_PATH_NOT_EXPORTED`.
+- **C1 was self-contradictory → eslint carve-out added.** C1 said `domain` gets "no
+  external grant" _and_ imports `@noble/hashes`. The Unit 01 `boundaries/dependencies`
+  lint blocks all externals from `domain` by omission, so importing `@noble/hashes`
+  failed lint. Resolved by a **narrow allow** in `eslint.config.ts`
+  (`from: domain, allow: external @noble/hashes` only); `verify-boundaries` still
+  proves `domain → react` is rejected. Documented in `content-doctrine.md §5`.
+- **Doctrine target path.** Step 4.4 said update `docs/doctrine/01-frozen-contracts.md`;
+  that file does not exist (consolidated into `docs/doctrine/architecture.md` during
+  substrate adoption). The frozen-status mark was applied to `architecture.md` instead.
+- **Coverage gate is latent.** The `src/domain/** ≥95%` threshold was added to
+  `vitest.config.ts` and verified once manually (`vitest run --coverage`), but
+  `ci:local` runs `test:unit:ci` without `--coverage`, so the gate does **not** fire in
+  CI. Follow-up bead filed to wire it in.
+- **Adapter test location.** `tests/unit/adapters/**` is not in the vitest include
+  globs; the `LocalContentProvider` test was placed under `tests/unit/ports/` (node
+  project) so it runs.
+- **fast-check predicate shape.** INV-9/INV-10 initially used expression-body arrows
+  returning `expect(...)` to fast-check, producing false failures that shrank to the
+  origin. Fixed to block bodies; the implementation was correct throughout. Captured as
+  a gotcha in `content-doctrine.md §8`.
