@@ -126,5 +126,5 @@ length `2k`; **each corner belongs to exactly one edge** (the four bound-checks 
 
 - [`content-doctrine.md`](./content-doctrine.md) — the cipher that consumes `room`; the
   boundary carve-out for `@noble/hashes`; the golden-vector library lock.
-- `docs/tasks/ongoing/02-deterministic-core/deterministic-core-spec.md` — the spec this
+- `docs/tasks/completed/02-deterministic-core/deterministic-core-spec.md` — the spec this
   was built from (property list INV-1…INV-14, §4.5 pairing algorithm).

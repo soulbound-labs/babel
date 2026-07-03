@@ -182,5 +182,5 @@ R = L; L = prevL`. The bug is silent; INV-8/10/11 are the only guards — never 
   the pairing geometry that produces `room`.
 - [`tooling-doctrine.md`](./tooling-doctrine.md) — why `scripts/print-golden.ts` is `.ts`
   via `tsx`, and the `substrate.yaml` gate.
-- `docs/tasks/ongoing/02-deterministic-core/deterministic-core-spec.md` — the spec
+- `docs/tasks/completed/02-deterministic-core/deterministic-core-spec.md` — the spec
   (INV-1…INV-14, §4.7 Feistel, §7.1 the impossibility argument in full).
