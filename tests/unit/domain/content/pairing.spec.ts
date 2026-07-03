@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
-import { ROOM_MAX } from '@/domain/content/config';
-import { isqrt, pair, unpair } from '@/domain/content/pairing';
+import { ROOM_MAX } from '@/domain/entities/content/config';
+import { isqrt, pair, unpair } from '@/domain/entities/content/pairing';
 
 const start = (k: bigint): bigint => 1n + 4n * k * (k - 1n);
 

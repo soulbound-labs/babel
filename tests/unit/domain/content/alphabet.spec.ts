@@ -1,8 +1,8 @@
 import fc from 'fast-check';
 import { describe, expect, it } from 'vitest';
 
-import { base29Decode, base29Encode } from '@/domain/content/alphabet';
-import { ALPHABET, COLS } from '@/domain/content/config';
+import { base29Decode, base29Encode } from '@/domain/entities/content/alphabet';
+import { ALPHABET, COLS } from '@/domain/entities/content/config';
 
 const glyph = fc.constantFrom(...ALPHABET.split(''));
 const line80 = fc.array(glyph, { minLength: COLS, maxLength: COLS });

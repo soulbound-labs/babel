@@ -2,10 +2,14 @@
 /**
  * Proves the hexagonal dependency rule (§2.2) is LIVE, not a false-green (E2).
  *
- * Strategy: write a throwaway file under src/domain/ that imports `react` — a
- * forbidden framework import for the pure core — run ESLint on just that file,
- * and require a NON-zero exit (i.e. ESLint reported the violation). If ESLint
- * exits 0, enforcement is broken and CI must fail.
+ * Strategy: write a throwaway file under src/domain/entities/ that imports
+ * `react` — a forbidden framework import for the pure core — run ESLint on just
+ * that file, and require a NON-zero exit (i.e. ESLint reported the violation).
+ * If ESLint exits 0, enforcement is broken and CI must fail.
+ *
+ * The probe MUST live under src/domain/entities/ (the `entities` boundary
+ * element). A probe elsewhere under src/domain/ would not be classified as the
+ * pure core, silently changing what this proof asserts.
  *
  * Run with tsx (see docs/doctrine/tooling-doctrine.md — no JS in this repo):
  *   pnpm script:verify-boundaries
@@ -14,7 +18,7 @@ import { execFileSync } from 'node:child_process';
 import { rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-const PROBE = join('src', 'domain', '__boundaries_probe__.ts');
+const PROBE = join('src', 'domain', 'entities', '__boundaries_probe__.ts');
 const ESLINT = join('node_modules', '.bin', 'eslint');
 
 interface EslintFailure {
@@ -56,7 +60,7 @@ function main(): void {
 
   if (result.exitCode === 0) {
     console.error(
-      '✖ boundaries false-green: ESLint did NOT reject a `domain → react` import.\n' +
+      '✖ boundaries false-green: ESLint did NOT reject an `entities → react` import.\n' +
         '  The §2.2 dependency rule is not enforcing. Fix eslint.config.ts.',
     );
     process.exit(1);
@@ -70,7 +74,7 @@ function main(): void {
     process.exit(1);
   }
 
-  console.log('✔ boundaries enforced: `domain → react` is correctly rejected by ESLint.');
+  console.log('✔ boundaries enforced: `entities → react` is correctly rejected by ESLint.');
   process.exit(0);
 }
 

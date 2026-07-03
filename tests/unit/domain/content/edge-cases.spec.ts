@@ -1,11 +1,16 @@
 import { describe, expect, it } from 'vitest';
 
-import { base29Decode, base29Encode, digitToGlyph, glyphToDigit } from '@/domain/content/alphabet';
-import { bytesToBigintBE, toBytesBE } from '@/domain/content/bytes';
-import { decodeLineIndex, encodeLineIndex } from '@/domain/content/codec';
-import { LINES_PER_ROOM, M, ROOM_MAX } from '@/domain/content/config';
-import { isqrt } from '@/domain/content/pairing';
-import type { LineAddress } from '@/domain/content/types';
+import {
+  base29Decode,
+  base29Encode,
+  digitToGlyph,
+  glyphToDigit,
+} from '@/domain/entities/content/alphabet';
+import { bytesToBigintBE, toBytesBE } from '@/domain/entities/content/bytes';
+import { decodeLineIndex, encodeLineIndex } from '@/domain/entities/content/codec';
+import { LINES_PER_ROOM, M, ROOM_MAX } from '@/domain/entities/content/config';
+import { isqrt } from '@/domain/entities/content/pairing';
+import type { LineAddress } from '@/domain/entities/content/types';
 
 const origin: LineAddress = { n: 0n, floor: 0n, wall: 0, shelf: 0, volume: 0, page: 0, line: 0 };
 

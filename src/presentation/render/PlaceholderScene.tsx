@@ -3,9 +3,9 @@
  * proves the R3F Lane-A pipeline is wired. Unit 03 replaces this with the
  * real hexagon room module.
  *
- * Boundary contract (§2.2): this file lives in `render/` and imports ONLY
- * @react-three/fiber / drei / three. It MUST NOT import from @/domain or
- * @/ports — Unit 02 cannot accidentally couple through the placeholder.
+ * Boundary contract (§2.2): this file lives in `presentation/render/` and
+ * imports ONLY @react-three/fiber / drei / three. When it needs data it MUST
+ * reach it through `@/domain/ports`, never a concrete adapter or Convex.
  */
 import { Canvas, useFrame } from '@react-three/fiber';
 import { useRef } from 'react';

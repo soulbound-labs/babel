@@ -1,8 +1,8 @@
 import fc from 'fast-check';
 import { describe, expect, it } from 'vitest';
 
-import { M } from '@/domain/content/config';
-import { feistel, feistelInverse } from '@/domain/content/permutation';
+import { M } from '@/domain/entities/content/config';
+import { feistel, feistelInverse } from '@/domain/entities/content/permutation';
 
 const inRange = fc.bigInt({ min: 0n, max: M - 1n });
 

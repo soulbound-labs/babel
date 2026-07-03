@@ -8,7 +8,7 @@
  * it would silently redefine the entire library (§6 E5). Relative import because
  * tsx does not resolve the `@/` tsconfig alias without a loader.
  */
-import { line } from '../src/domain/index';
+import { line } from '../src/domain/entities/index';
 
 const origin = { n: 0n, floor: 0n, wall: 0, shelf: 0, volume: 0, page: 0, line: 0 };
 process.stdout.write(line(origin).join('') + '\n');

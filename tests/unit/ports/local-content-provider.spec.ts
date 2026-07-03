@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 
 import { LocalContentProvider } from '@/adapters/content/local-content-provider';
-import type { LineAddress } from '@/domain';
-import { ORIGIN } from '@/domain';
+import type { LineAddress } from '@/domain/entities';
+import { ORIGIN } from '@/domain/entities';
 
 describe('LocalContentProvider (port adapter)', () => {
   const provider = new LocalContentProvider();

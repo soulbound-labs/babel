@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { line } from '@/domain/content/cipher';
+import { line } from '@/domain/entities/content/cipher';
 
 /**
  * INV-14 — THE GOLDEN VECTOR. The single most important test in the repo.

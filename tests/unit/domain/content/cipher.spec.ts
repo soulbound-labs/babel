@@ -1,9 +1,9 @@
 import fc from 'fast-check';
 import { describe, expect, it } from 'vitest';
 
-import { inverse, line } from '@/domain/content/cipher';
-import { ALPHABET, COLS } from '@/domain/content/config';
-import type { LineAddress } from '@/domain/content/types';
+import { inverse, line } from '@/domain/entities/content/cipher';
+import { ALPHABET, COLS } from '@/domain/entities/content/config';
+import type { LineAddress } from '@/domain/entities/content/types';
 
 const addr = fc.record({
   n: fc.bigInt({ min: -1_000_000n, max: 1_000_000n }),

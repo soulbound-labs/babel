@@ -1,9 +1,9 @@
 import fc from 'fast-check';
 import { describe, expect, it } from 'vitest';
 
-import { applyMove, invertMove, reduce } from '@/domain/coordinates/moves';
-import type { Coordinate, Move } from '@/domain/coordinates/types';
-import { ORIGIN } from '@/domain/coordinates/types';
+import { applyMove, invertMove, reduce } from '@/domain/entities/coordinates/moves';
+import type { Coordinate, Move } from '@/domain/entities/coordinates/types';
+import { ORIGIN } from '@/domain/entities/coordinates/types';
 
 const move = fc.constantFrom<Move>('forward', 'back', 'up', 'down');
 const coord = fc.record({ n: fc.bigInt(), floor: fc.bigInt() });

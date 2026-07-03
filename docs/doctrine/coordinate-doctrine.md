@@ -1,6 +1,6 @@
 # Coordinate Doctrine — the ℤ² lattice, moves, identity & pairing (DOCTRINE)
 
-> **Preload when** you touch `src/domain/coordinates/**` or `src/domain/content/pairing.ts`,
+> **Preload when** you touch `src/domain/entities/coordinates/**` or `src/domain/entities/content/pairing.ts`,
 > or anything that walks the world, sums moves, hashes a room, or converts a room
 > coordinate to/from the ℕ index the cipher consumes. Sibling: the cipher itself is
 > [`content-doctrine.md`](./content-doctrine.md). This is the depth tier; the trigger
@@ -83,7 +83,7 @@ ring 0:  1 cell  (index  0 = origin)      │ │   O   │ │   O = (0,0) = in
 Within ring `k` the `8k` cells are walked counter-clockwise over four edges of
 length `2k`; **each corner belongs to exactly one edge** (the four bound-checks in
 `pair()` are disjoint and exhaustive; the `else` branch is the bottom edge,
-`floor === -k`). See `src/domain/content/pairing.ts` for the exact edge table.
+`floor === -k`). See `src/domain/entities/content/pairing.ts` for the exact edge table.
 
 ## 5. Gotchas (symptom → cause → fix)
 
@@ -111,14 +111,14 @@ length `2k`; **each corner belongs to exactly one edge** (the four bound-checks 
 
 ## 6. Where this lives / boundaries
 
-- `src/domain/coordinates/types.ts` — `Coordinate`, `Move`, `ORIGIN`.
-- `src/domain/coordinates/moves.ts` — `moveVector`, `applyMove`, `invertMove`, `reduce`.
-- `src/domain/coordinates/hash.ts` — `hash` (imports `@noble/hashes` — the _only_
+- `src/domain/entities/coordinates/types.ts` — `Coordinate`, `Move`, `ORIGIN`.
+- `src/domain/entities/coordinates/moves.ts` — `moveVector`, `applyMove`, `invertMove`, `reduce`.
+- `src/domain/entities/coordinates/hash.ts` — `hash` (imports `@noble/hashes` — the _only_
   external `domain` may touch; see [`content-doctrine.md`](./content-doctrine.md) §5
   and the boundary carve-out).
-- `src/domain/content/pairing.ts` — `pair`, `unpair`, `isqrt` (lives here because it
+- `src/domain/entities/content/pairing.ts` — `pair`, `unpair`, `isqrt` (lives here because it
   feeds the cipher and freezes with it).
-- **Public surface** (frozen barrel `src/domain/index.ts`): `ORIGIN`, `applyMove`,
+- **Public surface** (frozen barrel `src/domain/entities/index.ts`): `ORIGIN`, `applyMove`,
   `invertMove`, `reduce`, `hash` + types `Coordinate`, `Move`. `moveVector` and the
   pairing are **private** to the domain — downstream units never import them.
 

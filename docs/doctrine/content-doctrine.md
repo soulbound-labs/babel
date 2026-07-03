@@ -1,6 +1,6 @@
 # Content Doctrine — the deterministic library cipher (DOCTRINE)
 
-> **Preload when** you touch `src/domain/content/**` (cipher, codec, permutation,
+> **Preload when** you touch `src/domain/entities/content/**` (cipher, codec, permutation,
 > alphabet, config), the golden vector, or anything about "what text is at a
 > coordinate." Sibling: the lattice/moves/pairing geometry is
 > [`coordinate-doctrine.md`](./coordinate-doctrine.md). This is the depth tier; the
@@ -86,7 +86,7 @@ violations. The **single exception** is `@noble/hashes` (audited, zero-dep
 SHA-256/HMAC), granted by one narrow rule in `eslint.config.ts`:
 
 ```
-{ from: { type: 'domain' }, allow: { to: { origin: 'external' },
+{ from: { type: 'entities' }, allow: { to: { origin: 'external' },
   dependency: { module: '@noble/hashes' } } }
 ```
 
@@ -169,9 +169,9 @@ R = L; L = prevL`. The bug is silent; INV-8/10/11 are the only guards — never 
   [`coordinate-doctrine.md`](./coordinate-doctrine.md)) · `content/codec.ts` line-index +
   `ROOM_MAX` guards · `content/permutation.ts` Feistel + `roundKey`/`F` ·
   `content/cipher.ts` `line`/`inverse`.
-- **Public surface** (frozen barrel `src/domain/index.ts`): `line`, `inverse` + types
+- **Public surface** (frozen barrel `src/domain/entities/index.ts`): `line`, `inverse` + types
   `LineAddress`, `Glyph`. Everything else under `content/` is **private**.
-- The port seam is `ContentProvider` (`src/ports/index.ts`, `Address = LineAddress`,
+- The port seam is `ContentProvider` (`src/domain/ports/index.ts`, `Address = LineAddress`,
   `Glyph = string`), implemented by `LocalContentProvider`
   (`src/adapters/content/local-content-provider.ts`). A future `WasmContentProvider`
   swaps in here and must reproduce the golden vector.
