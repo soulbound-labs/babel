@@ -101,7 +101,7 @@ math outgrows the analytic model, **that** unit renegotiates with evidence.
 
 ## 7. Pointers
 
-- `docs/tasks/ongoing/03-world-render/03-world-render-spec.md` — the spec that froze
+- `docs/tasks/completed/03-world-render/03-world-render-spec.md` — the spec that froze
   these seams (§4 architecture, §5 invariants INV-R1..R10).
 - [`audio-doctrine.md`](./audio-doctrine.md) — the bus the camera's listener pose drives.
 - [`mood-gate-doctrine.md`](./mood-gate-doctrine.md) — the acceptance ritual + regression
