@@ -1,9 +1,11 @@
 /**
- * The static spiral staircase (§7.3): a helix of treads around a center
- * column, extending ~1.5 turns above and below floor level so it visibly
- * winds out of sight into the fog. Radius/pitch come from `dimensions.ts`,
- * sized for a walkable tread from day one — Unit 04 adds collision and the
- * climb WITHOUT reshaping this spiral. Local origin: stair axis at floor level.
+ * The static spiral staircase (§7.3, Unit 04 §4.2.3): ONE inter-floor turn of
+ * the helix per room — floor level to ceiling. Streamed rooms above and below
+ * continue it seamlessly (the mouth azimuth repeats every floor exactly), and
+ * the shaft impostor carries the silhouette beyond the live set. Radius/pitch
+ * come from `dimensions.ts`; the cross-section is FROZEN (Unit 04 walks it
+ * WITHOUT reshaping): 12 treads/turn, rise/turn = CEILING_HEIGHT,
+ * STAIR_RADIUS 0.78. Local origin: stair axis at floor level.
  */
 import { useMemo } from 'react';
 import { BoxGeometry, BufferGeometry, CylinderGeometry } from 'three';
@@ -13,19 +15,18 @@ import { woodMaterial } from './materials';
 import { mustMerge } from './Room';
 
 const TREADS_PER_TURN = 12;
-const TURNS_EACH_WAY = 1.5;
 const TREAD_THICKNESS = 0.035;
 const TREAD_WIDTH = 0.24; // tangential
 const COLUMN_RADIUS = 0.055;
 const INNER_GAP = 0.08; // treads start just off the column
 
-function spiralGeometry(): BufferGeometry {
+/** One full turn: treads 0..11 (floor → ceiling) + the column segment for this floor. */
+export function spiralTurnGeometry(): BufferGeometry {
   const geoms: BufferGeometry[] = [];
-  const treadCount = Math.floor(2 * TURNS_EACH_WAY * TREADS_PER_TURN);
   const rise = CEILING_HEIGHT / TREADS_PER_TURN; // rise per turn = CEILING_HEIGHT (§7.3)
   const treadLength = STAIR_RADIUS - INNER_GAP;
 
-  for (let i = -treadCount / 2; i < treadCount / 2; i++) {
+  for (let i = 0; i < TREADS_PER_TURN; i++) {
     const phi = i * ((2 * Math.PI) / TREADS_PER_TURN);
     const tread = new BoxGeometry(TREAD_WIDTH, TREAD_THICKNESS, treadLength);
     tread.translate(0, 0, INNER_GAP + treadLength / 2); // extend radially from the column
@@ -34,14 +35,14 @@ function spiralGeometry(): BufferGeometry {
     geoms.push(tread);
   }
 
-  const columnLength = 2 * TURNS_EACH_WAY * CEILING_HEIGHT + 1;
-  const column = new CylinderGeometry(COLUMN_RADIUS, COLUMN_RADIUS, columnLength, 10);
+  const column = new CylinderGeometry(COLUMN_RADIUS, COLUMN_RADIUS, CEILING_HEIGHT, 10);
+  column.translate(0, CEILING_HEIGHT / 2, 0);
   geoms.push(column);
 
   return mustMerge(geoms);
 }
 
 export function Staircase() {
-  const spiral = useMemo(() => spiralGeometry(), []);
+  const spiral = useMemo(() => spiralTurnGeometry(), []);
   return <mesh geometry={spiral} material={woodMaterial} />;
 }

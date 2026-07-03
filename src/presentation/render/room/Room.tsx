@@ -97,8 +97,9 @@ function hexSlabWithShaftHole(): Shape {
   return shape;
 }
 
-/** The black volume beyond the side-0 doorway — an unlit dead-end corridor. */
-function entranceVoid(): BufferGeometry {
+/** The black volume beyond the side-0 doorway — an unlit dead-end corridor.
+ * Unit 04: rendered ONLY for edge rooms (n = −64), where the corridor truly ends. */
+export function entranceVoidGeometry(): BufferGeometry {
   const depth = 1.4;
   const w = DOOR_WIDTH + 0.3;
   const geoms: BufferGeometry[] = [];
@@ -116,31 +117,32 @@ function entranceVoid(): BufferGeometry {
   return mustMerge(geoms);
 }
 
+/** The hexagon's full stone geometry — walls, floor, ceiling — merged (Unit 04: instanced ×11). */
+export function hexStoneGeometry(): BufferGeometry {
+  const geoms: BufferGeometry[] = [];
+  for (let side = 0; side < 6; side++) geoms.push(...wallForSide(side));
+
+  const slab = hexSlabWithShaftHole();
+  const floorGeom = new ShapeGeometry(slab);
+  floorGeom.rotateX(-Math.PI / 2); // normal +y — walkable face up
+  geoms.push(floorGeom);
+  const ceilingGeom = new ShapeGeometry(slab);
+  ceilingGeom.rotateX(Math.PI / 2); // normal -y — faces down into the room
+  ceilingGeom.translate(0, CEILING_HEIGHT, 0);
+  geoms.push(ceilingGeom);
+
+  return mustMerge(geoms);
+}
+
 export function Room() {
-  const { shell, floor, ceiling, voidBeyond } = useMemo(() => {
-    const walls: BufferGeometry[] = [];
-    for (let side = 0; side < 6; side++) walls.push(...wallForSide(side));
-
-    const slab = hexSlabWithShaftHole();
-    const floorGeom = new ShapeGeometry(slab);
-    floorGeom.rotateX(-Math.PI / 2); // normal +y — walkable face up
-    const ceilingGeom = new ShapeGeometry(slab);
-    ceilingGeom.rotateX(Math.PI / 2); // normal -y — faces down into the room
-    ceilingGeom.translate(0, CEILING_HEIGHT, 0);
-
-    return {
-      shell: mustMerge(walls),
-      floor: floorGeom,
-      ceiling: ceilingGeom,
-      voidBeyond: entranceVoid(),
-    };
-  }, []);
+  const { shell, voidBeyond } = useMemo(
+    () => ({ shell: hexStoneGeometry(), voidBeyond: entranceVoidGeometry() }),
+    [],
+  );
 
   return (
     <group>
       <mesh geometry={shell} material={stoneMaterial} />
-      <mesh geometry={floor} material={stoneMaterial} />
-      <mesh geometry={ceiling} material={stoneMaterial} />
       <mesh geometry={voidBeyond} material={voidMaterial} />
     </group>
   );

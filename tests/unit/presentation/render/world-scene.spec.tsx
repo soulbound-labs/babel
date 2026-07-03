@@ -22,6 +22,11 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
+it('RoomStream module loads outside the browser (three geometry builders are jsdom-safe)', async () => {
+  const { RoomStream } = await import('@/presentation/render/world/RoomStream');
+  expect(typeof RoomStream).toBe('function');
+});
+
 it('mounts App without throwing', () => {
   const container = document.createElement('div');
   document.body.appendChild(container);

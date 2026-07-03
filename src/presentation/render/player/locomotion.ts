@@ -108,7 +108,7 @@ export function stepLocomotion(
   // legs can't make (tread rise 0.167 < MAX_STEP resolves everything on the
   // helix — this guard only fires on a would-be cliff).
   const sample = surfaceAt(to.x, to.z, feetFrom, ctx.stairs);
-  if (Math.abs(sample.y - feetFrom) > MAX_STEP) {
+  if (sample.capped === true || Math.abs(sample.y - feetFrom) > MAX_STEP) {
     return {
       player: { coordinate: state.player.coordinate, localPosition: from, yaw, pitch },
       velocity: { x: 0, z: 0 },

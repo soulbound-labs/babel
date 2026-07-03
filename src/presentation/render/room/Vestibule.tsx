@@ -64,7 +64,7 @@ function slabWithStairwell(zToShapeY: (z: number) => number): Shape {
   return shape;
 }
 
-function vestibuleShell(): BufferGeometry {
+export function vestibuleStoneGeometry(): BufferGeometry {
   const geoms: BufferGeometry[] = [];
 
   // +x flank — full straight wall (the walk lane runs along it).
@@ -125,7 +125,7 @@ function vestibuleShell(): BufferGeometry {
 /** Placeholder closet doorways: dark recessed rectangles, one per flank. Unit 06 deepens them.
  * The −x doorway sits on the wall segment between hexagon and alcove mouth — nudged toward
  * the hexagon and narrowed to fit (the alcove displaced its Unit 03 position). */
-function closetDoorways(): BufferGeometry {
+export function closetDoorwaysGeometry(): BufferGeometry {
   const geoms: BufferGeometry[] = [];
 
   const rightDoor = new PlaneGeometry(CLOSET_SIDE, 1.7);
@@ -142,9 +142,16 @@ function closetDoorways(): BufferGeometry {
   return mustMerge(geoms);
 }
 
+/** Void plug over the far-cap door gap — edge rooms (n = +64) only: the corridor ends in dark. */
+export function farDoorPlugGeometry(): BufferGeometry {
+  const plug = new PlaneGeometry(DOOR_WIDTH + 0.1, DOOR_HEIGHT + 0.05);
+  plug.translate(FAR_DOOR_CENTER_X, DOOR_HEIGHT / 2, FAR_Z - 0.02);
+  return plug;
+}
+
 export function Vestibule() {
   const { shell, closets } = useMemo(
-    () => ({ shell: vestibuleShell(), closets: closetDoorways() }),
+    () => ({ shell: vestibuleStoneGeometry(), closets: closetDoorwaysGeometry() }),
     [],
   );
   return (

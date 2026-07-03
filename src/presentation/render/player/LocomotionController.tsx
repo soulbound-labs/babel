@@ -1,20 +1,35 @@
 /**
- * First-person locomotion (§4.7): pointer-lock mouselook (yaw unbounded,
- * pitch clamped), WASD walking resolved through the analytic colliders. The
- * controller owns the SINGLE camera and exposes the frozen `LocomotionHandle`
- * seam — Unit 05 reads in place through suspend()/resume(), Unit 04 extends
- * movement underneath it. One camera, one owner (§7.2).
+ * First-person locomotion (§4.7, Unit 04 §4.2.1): pointer-lock mouselook (yaw
+ * unbounded, pitch clamped), WASD walking resolved through the analytic
+ * colliders, and — Unit 04 — the traversal machine underneath: the controller
+ * holds `TraversalState`, detects commit-plane crossings (`origin.ts`), gates
+ * them through `canMove`, and on an ACCEPTED commit shifts the local position
+ * by the exact negation of the world shift and re-bases the streamed world
+ * SYNCHRONOUSLY in the same frame (screen-space no-op). Unit 03's
+ * `coordinate: ORIGIN` pin is retired — `PlayerState.coordinate` now reflects
+ * the traversal coordinate. Only this pipeline ever calls `crossThreshold`;
+ * nothing here constructs a Coordinate by hand (T-1).
  *
- * Input only flows while pointer-locked (E1); lock loss freezes movement and
- * the entry overlay takes over. No input handler ever throws on denial.
+ * The controller owns the SINGLE camera and exposes the frozen
+ * `LocomotionHandle` seam — shape unchanged (suspend/resume/state).
+ * Input only flows while pointer-locked (E1); lock loss freezes movement.
  */
 import { useFrame, useThree } from '@react-three/fiber';
 import { useContext, useEffect, useImperativeHandle, useMemo, useRef } from 'react';
 import type { Ref } from 'react';
 
+import type { Coordinate } from '../../../domain/entities';
 import type { PlayerState } from '../../../domain/ports';
+import { canMove } from '../../traversal/bounds';
+import { createTraversal, crossThreshold } from '../../traversal/traversal';
+import type { TraversalState } from '../../traversal/traversal';
 import { PresenceContext } from '../../presence-context';
 import type { CameraPose } from '../debug/poses';
+import { commitShift, detectCommit, INITIAL_TRACKER } from '../world/origin';
+import type { OriginTracker } from '../world/origin';
+import { liveCollisionSpecs } from '../world/streaming';
+import { createCollisionContext } from './collision';
+import { EYE_HEIGHT } from '../room/dimensions';
 import { clampPitch, createLocomotionState, stepLocomotion } from './locomotion';
 import type { LocomotionInput, LocomotionState } from './locomotion';
 import { createPresencePublisher } from './presence-publisher';
@@ -25,7 +40,7 @@ export interface LocomotionHandle {
   suspend(): void;
   /** Restores walking from wherever the camera was returned. */
   resume(): void;
-  /** Current pose (coordinate = ORIGIN this unit). */
+  /** Current pose — coordinate is the live traversal coordinate. */
   readonly state: PlayerState;
 }
 
@@ -42,13 +57,24 @@ const KEY_MAP: Record<string, keyof Pick<LocomotionInput, 'forward' | 'back' | '
 export type LocomotionControllerProps = {
   initialPose: CameraPose;
   handleRef?: Ref<LocomotionHandle>;
+  /** Called synchronously inside the frame on an accepted commit (§4.2.1 step 3). */
+  onCommit?: (coordinate: Coordinate) => void;
 };
 
-export function LocomotionController({ initialPose, handleRef }: LocomotionControllerProps) {
+export function LocomotionController({
+  initialPose,
+  handleRef,
+  onCommit,
+}: LocomotionControllerProps) {
   const camera = useThree((s) => s.camera);
   const presencePort = useContext(PresenceContext);
   const publishPresence = useMemo(() => createPresencePublisher(presencePort), [presencePort]);
   const stateRef = useRef<LocomotionState>(createLocomotionState(initialPose));
+  const traversalRef = useRef<TraversalState>(createTraversal());
+  const trackerRef = useRef<OriginTracker>(INITIAL_TRACKER);
+  const collisionRef = useRef(
+    createCollisionContext(liveCollisionSpecs(traversalRef.current.coordinate)),
+  );
   const inputRef = useRef<LocomotionInput>({
     forward: false,
     back: false,
@@ -136,7 +162,37 @@ export function LocomotionController({ initialPose, handleRef }: LocomotionContr
   useFrame((frame, delta) => {
     const state = stateRef.current;
     if (state.suspended) return; // camera belongs to the suspender
-    stateRef.current = stepLocomotion(state, inputRef.current, delta);
+
+    const prev = state.player.localPosition;
+    stateRef.current = stepLocomotion(state, inputRef.current, delta, collisionRef.current);
+    const next = stateRef.current.player.localPosition;
+
+    // Commit detection in feet space (§4.2.1); the ±64 gate runs BEFORE apply (T-5).
+    const step = detectCommit(
+      trackerRef.current,
+      { x: prev.x, y: prev.y - EYE_HEIGHT, z: prev.z },
+      { x: next.x, y: next.y - EYE_HEIGHT, z: next.z },
+      (m) => canMove(traversalRef.current.coordinate, m),
+    );
+    trackerRef.current = step.tracker;
+
+    if (step.commit !== null) {
+      traversalRef.current = crossThreshold(traversalRef.current, step.commit);
+      const coordinate = traversalRef.current.coordinate;
+      const shift = commitShift(step.commit);
+      stateRef.current = {
+        ...stateRef.current,
+        player: {
+          ...stateRef.current.player,
+          coordinate,
+          localPosition: { x: next.x + shift.x, y: next.y + shift.y, z: next.z + shift.z },
+        },
+      };
+      collisionRef.current = createCollisionContext(liveCollisionSpecs(coordinate));
+      // Same frame: matrices, lights, emitters, listener follow before render (§4.2.1 step 3).
+      onCommit?.(coordinate);
+    }
+
     const { localPosition, yaw, pitch } = stateRef.current.player;
     camera.position.set(localPosition.x, localPosition.y, localPosition.z);
     camera.rotation.set(pitch, yaw, 0);

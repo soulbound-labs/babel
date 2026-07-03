@@ -8,22 +8,18 @@
  * third-party, and presentation modules — never adapters or convex.
  */
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import type { Ref } from 'react';
 import { Vector3 } from 'three';
 
+import type { Coordinate } from '../../domain/entities';
 import type { AudioBus } from '../audio/audio-bus';
 import { applyAtmosphere, DEFAULT_ATMOSPHERE } from './atmosphere/atmosphere';
 import { DebugStats } from './debug/DebugStats';
 import { parseDebugParam, parsePoseParam, SPAWN_POSE } from './debug/poses';
 import { LocomotionController } from './player/LocomotionController';
 import type { LocomotionHandle } from './player/LocomotionController';
-import { BookWalls } from './room/BookWalls';
-import { Bulbs } from './room/Bulbs';
-import { Room } from './room/Room';
-import { Shaft } from './room/Shaft';
-import { Shelves } from './room/Shelves';
-import { Vestibule } from './room/Vestibule';
+import { RoomStream } from './world/RoomStream';
 
 /** Applies the §4.8 atmosphere profile + the floor ambient inside the Canvas. */
 function Atmosphere() {
@@ -62,6 +58,8 @@ export function WorldScene({ locomotionRef, audioBus }: WorldSceneProps = {}) {
   const search = window.location.search;
   const pose = parsePoseParam(search) ?? SPAWN_POSE;
   const debug = parseDebugParam(search);
+  // The same-frame re-base channel (§4.2.1): controller → RoomStream, no React round-trip.
+  const rebaseRef = useRef<((c: Coordinate) => void) | null>(null);
 
   return (
     <Canvas
@@ -69,16 +67,15 @@ export function WorldScene({ locomotionRef, audioBus }: WorldSceneProps = {}) {
       dpr={[1, 1.5]}
       camera={{ fov: 62, near: 0.05, far: 60 }}
     >
-      <LocomotionController initialPose={pose} handleRef={locomotionRef} />
+      <LocomotionController
+        initialPose={pose}
+        handleRef={locomotionRef}
+        onCommit={(c) => rebaseRef.current?.(c)}
+      />
       {audioBus && <ListenerPoseDriver bus={audioBus} />}
       {debug && <DebugStats />}
       <Atmosphere />
-      <Bulbs />
-      <Room />
-      <Shaft />
-      <Vestibule />
-      <Shelves />
-      <BookWalls />
+      <RoomStream rebaseRef={rebaseRef} />
     </Canvas>
   );
 }

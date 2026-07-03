@@ -36,8 +36,10 @@ export const STAIRWELL_RADIUS = STAIR_RADIUS + 0.06;
 export const LANDING_OUTER_R = 0.9;
 export const LANDING_HALF_ANGLE = Math.PI / 4;
 
-/** A stair site in the local float frame (one per live room, at the room's offset). */
-export type StairSite = { x: number; z: number };
+/** A stair site in the local float frame (one per live room, at the room's offset).
+ * Optional feet-y caps implement "stair cell caps θ at floor ±64" (§4.2.5): a tread
+ * beyond the cap does not exist — locomotion rejects the step (soft invisible stop). */
+export type StairSite = { x: number; z: number; minFeetY?: number; maxFeetY?: number };
 
 /** Wrapped azimuth of (x, z) about `site`, in (−π, π]; 0 faces +z (the mouth). */
 export function stairAzimuth(x: number, z: number, site: StairSite): number {
@@ -64,7 +66,12 @@ export function stairSurfaceY(theta: number, refY: number): number {
   return (tread + turn * TREADS_PER_TURN) * TREAD_RISE;
 }
 
-export type SurfaceSample = { surface: 'floor' | 'stair'; y: number };
+export type SurfaceSample = {
+  surface: 'floor' | 'stair';
+  y: number;
+  /** The tread is beyond the site's ±64-floor cap — the step must be refused. */
+  capped?: boolean;
+};
 
 /**
  * Surface under (x, z): a tread top when within a stair footprint (annulus or
@@ -84,7 +91,14 @@ export function surfaceAt(
     const inAnnulus = r <= STAIR_OUTER_R;
     const inLanding = Math.abs(theta) <= LANDING_HALF_ANGLE;
     if (inAnnulus || inLanding) {
-      return { surface: 'stair', y: stairSurfaceY(theta, refY) };
+      const y = stairSurfaceY(theta, refY);
+      if (site.maxFeetY !== undefined && y > site.maxFeetY) {
+        return { surface: 'stair', y, capped: true };
+      }
+      if (site.minFeetY !== undefined && y < site.minFeetY) {
+        return { surface: 'stair', y, capped: true };
+      }
+      return { surface: 'stair', y };
     }
   }
   return { surface: 'floor', y: Math.round(refY / CEILING_HEIGHT) * CEILING_HEIGHT };

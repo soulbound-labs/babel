@@ -83,6 +83,9 @@ export type RoomCollisionSpec = {
   offset: Vec2;
   /** Backward neighbor (n−1) resident/in-bounds ⇒ the entrance continues; else Unit 03 blocker. */
   entranceOpen: boolean;
+  /** Stair θ caps at floor ±64 (§4.2.5), as feet-y bounds relative to the current floor. */
+  stairMinFeetY?: number;
+  stairMaxFeetY?: number;
 };
 
 export type CollisionContext = {
@@ -196,7 +199,12 @@ export function createCollisionContext(rooms: readonly RoomCollisionSpec[]): Col
   const stairs: StairSite[] = [];
   for (const spec of rooms) {
     cells.push(...roomCells(spec));
-    stairs.push({ x: spec.offset.x + STAIR_AXIS_X, z: spec.offset.z + STAIR_AXIS_Z });
+    stairs.push({
+      x: spec.offset.x + STAIR_AXIS_X,
+      z: spec.offset.z + STAIR_AXIS_Z,
+      minFeetY: spec.stairMinFeetY,
+      maxFeetY: spec.stairMaxFeetY,
+    });
   }
   return { cells, stairs };
 }

@@ -10,10 +10,10 @@ import type { Vec3 } from './instancing';
 
 const BULB_HEIGHT = 1.85;
 const BULB_OFFSET = 1.15; // transversal: perpendicular to the door (z) axis
-const BULB_RADIUS = 0.09;
-const BULB_COLOR = '#ffd9a0';
-const LIGHT_INTENSITY = 3.2; // insufficient by design — but the room must still read
-const LIGHT_DISTANCE = 7; // reaches through the doorways: shaft railing + vestibule catch spill
+export const BULB_RADIUS = 0.09;
+export const BULB_COLOR = '#ffd9a0';
+export const LIGHT_INTENSITY = 3.2; // insufficient by design — but the room must still read
+export const LIGHT_DISTANCE = 7; // reaches through the doorways: shaft railing + vestibule catch spill
 
 /** Frozen bulb positions — the positional audio hums (§4.6) sit exactly here.
  * Two transversal in the hexagon (Borges) + one in the vestibule hallway,
