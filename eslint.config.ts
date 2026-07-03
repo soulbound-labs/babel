@@ -9,7 +9,7 @@ import prettier from 'eslint-config-prettier';
  * The load-bearing part is the `boundaries/dependencies` block: it encodes the
  * §2.2 hexagonal dependency rule as lint errors (fails CI), not a code-review
  * convention. `domain` imports nothing outward and no framework; each layer may
- * only reach inward. See docs/doctrine/00-architecture.md.
+ * only reach inward. See docs/doctrine/architecture.md.
  *
  * We run with `checkAllOrigins: true` and `default: 'disallow'`, so the pure
  * core (`domain`/`ports`) is granted ONLY narrow inward allows — every

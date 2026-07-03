@@ -45,10 +45,9 @@ than an enumerated deny-list.
 
 A violating import **fails `pnpm lint`**, which **fails CI**. And because a lint
 rule that matches nothing is a silent false-green, we prove enforcement is live
-on every CI run with `pnpm verify:boundaries`, which writes a throwaway
-`domain → react` import and asserts ESLint rejects it (see
-[01 — Frozen contracts](./01-frozen-contracts.md) and the E2 rationale in the
-Unit 01 spec).
+on every CI run with `pnpm script:verify-boundaries`, which writes a throwaway
+`domain → react` import and asserts ESLint rejects it (see the E2 rationale in
+the Unit 01 spec).
 
 ## Directory model
 

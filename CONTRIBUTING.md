@@ -14,8 +14,8 @@ Run the composite gate locally — it mirrors CI exactly:
 pnpm ci:local
 ```
 
-which runs, in order: `app:compile` (typecheck) → `lint` → `format:check` →
-`verify:boundaries` (proves the dependency rule fires) → `test:unit:ci` →
+which runs, in order: `compile` (typecheck) → `lint` → `format:check` →
+`script:verify-boundaries` (proves the dependency rule fires) → `test:unit:ci` →
 `build`. Do not push red.
 
 ## Branch-per-unit
@@ -37,15 +37,15 @@ let these branches avoid touching each other's subsystems.
 
 The `domain/` and `ports/` public surfaces
 (`src/domain/index.ts`, `src/ports`) are **frozen contracts**. Every
-other unit imports them, so they change **only via an ADR** — see
-[docs/doctrine/01-frozen-contracts.md](./docs/doctrine/01-frozen-contracts.md)
-and the [ADR template](./docs/doctrine/02-adr-template.md). Everything under
-`adapters/`, `render/`, `audio/`, and `app/` is an adapter and can change freely
-within its layer.
+other unit imports them, so they change **only via an ADR** — see the frozen
+domain/ports seams in
+[docs/doctrine/architecture.md](./docs/doctrine/architecture.md). Everything
+under `adapters/`, `render/`, `audio/`, and `app/` is an adapter and can change
+freely within its layer.
 
 ## The one rule that fails CI on purpose
 
 Nothing under `src/domain/` (or `src/ports/`) may import a framework
 (react, three, convex). This keeps the deterministic core pure and is enforced
 by `boundaries/dependencies` in `eslint.config.ts`. See
-[docs/doctrine/00-architecture.md](./docs/doctrine/00-architecture.md).
+[docs/doctrine/architecture.md](./docs/doctrine/architecture.md).

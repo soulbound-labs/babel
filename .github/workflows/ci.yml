@@ -33,7 +33,7 @@ jobs:
       # Ordered gates — mirror `pnpm ci:local`. No Convex/deploy secrets here;
       # CI validates compile/lint/test/build only (E1).
       - name: Typecheck
-        run: pnpm app:compile
+        run: pnpm compile
 
       - name: Lint
         run: pnpm lint
@@ -42,7 +42,7 @@ jobs:
         run: pnpm format:check
 
       - name: Prove dependency-rule enforcement (E2)
-        run: pnpm verify:boundaries
+        run: pnpm script:verify-boundaries
 
       - name: Unit tests
         run: pnpm test:unit:ci

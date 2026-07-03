@@ -9,7 +9,7 @@
  * The placeholder types below are deliberately loose (`unknown`); their real
  * shapes are finalized in Unit 02 (Address/Glyph, alongside reduce/hash/line/
  * inverse) and Unit 03 (PlayerState). Keeping them loose here avoids committing
- * the cipher/render design before it exists — see docs/doctrine/01-frozen-contracts.md.
+ * the cipher/render design before it exists — see the frozen seams in docs/doctrine/architecture.md.
  */
 
 /** A ℤ² lattice address `(n, floor)` + intra-volume position. Shape finalized in Unit 02. */

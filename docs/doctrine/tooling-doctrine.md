@@ -13,7 +13,7 @@ in build config.
 
 - **Executable scripts live in `scripts/*.ts` and run via `tsx`**, never `node`.
   Package scripts invoke them as `tsx scripts/<name>.ts` (e.g.
-  `verify:boundaries`). `tsx` transpiles + runs TS directly, so there is no build
+  `script:verify-boundaries`). `tsx` transpiles + runs TS directly, so there is no build
   step and no compiled `.js` artifact to drift from its source.
 - **Build/tool configs are TypeScript too:** `vite.config.ts`, `vitest.config.ts`,
   and `eslint.config.ts`. ESLint loads a TS flat config natively because
@@ -41,7 +41,7 @@ its purpose.
 
 - **Typecheck.** Scripts have their own `tsconfig.scripts.json` (Node lib +
   `types: ["node"]`, no DOM), kept separate from the browser app config so Node
-  globals resolve without polluting `src`. `pnpm app:compile` runs **both**
+  globals resolve without polluting `src`. `pnpm compile` runs **both**
   projects (`tsc --noEmit && tsc --noEmit -p tsconfig.scripts.json`). `@types/node`
   is a devDependency so `node:*` builtins, `process`, and `Buffer` type-check.
 - **Lint.** `eslint.config.ts` adds `scripts/**/*.ts` to the typescript-eslint
@@ -68,5 +68,5 @@ its purpose.
 
 - `substrate.yaml` — the declared build/test/lint gate.
 - `eslint.config.ts` — flat config (loaded via `jiti`) incl. the boundary rule.
-- `docs/doctrine/00-architecture.md` — the hexagonal layers the lint rule enforces.
+- `docs/doctrine/architecture.md` — the hexagonal layers the lint rule enforces.
 - `AGENTS.md` — root map; the spec/task lifecycle.

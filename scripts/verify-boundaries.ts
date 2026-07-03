@@ -8,7 +8,7 @@
  * exits 0, enforcement is broken and CI must fail.
  *
  * Run with tsx (see docs/doctrine/tooling-doctrine.md — no JS in this repo):
- *   pnpm verify:boundaries
+ *   pnpm script:verify-boundaries
  */
 import { execFileSync } from 'node:child_process';
 import { rmSync, writeFileSync } from 'node:fs';

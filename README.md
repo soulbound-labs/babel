@@ -11,7 +11,7 @@ stack-agnostic kernel that turns intent into gated, reviewable change:
 - **[AGENTS.md](./AGENTS.md)** (with `CLAUDE.md` as a symlink) — the canonical
   root context every agent reads first.
 - **[substrate.yaml](./substrate.yaml)** — the _declared_ verification gate. The
-  engine runs exactly these, never guesses: `compile → pnpm app:compile`,
+  engine runs exactly these, never guesses: `compile → pnpm compile`,
   `test → pnpm test:unit:ci`, `lint → pnpm lint`.
 - **[docs/doctrine/](./docs/doctrine/)** — the binding rules (architecture, frozen
   contracts, agent conduct), enforced by `doctrine-lint` in the pre-commit hook + CI.
@@ -55,7 +55,7 @@ the exact same text, forever.
 The architecture exists to protect that determinism. The content core is plain
 TypeScript + BigInt and is **structurally forbidden** from importing a rendering
 engine, UI framework, or backend — enforced as a lint error that fails CI, not a
-code-review convention. See [docs/doctrine/00-architecture.md](./docs/doctrine/00-architecture.md).
+code-review convention. See [docs/doctrine/architecture.md](./docs/doctrine/architecture.md).
 
 ## Full scope
 
@@ -112,9 +112,9 @@ pnpm ci:local
 | -------------------------------------- | -------------------------------------------------- |
 | `pnpm dev`                             | Vite dev server + `convex dev`, concurrently       |
 | `pnpm build`                           | Production build to `dist/`                        |
-| `pnpm app:compile`                     | Typecheck (`tsc --noEmit`)                         |
+| `pnpm compile`                         | Typecheck (`tsc --noEmit`, app + scripts projects) |
 | `pnpm lint` / `pnpm format:check`      | ESLint (incl. the dependency rule) / Prettier      |
-| `pnpm verify:boundaries`               | Proves the `domain → framework` import is rejected |
+| `pnpm script:verify-boundaries`        | Proves the `domain → framework` import is rejected |
 | `pnpm test:unit` / `pnpm test:unit:ci` | Vitest (watch / one-shot)                          |
 | `pnpm ci:local`                        | The whole-repo green gate (mirrors CI)             |
 
@@ -133,8 +133,7 @@ and PR. It carries **no Convex or deploy secrets** — deploys are separate.
 
 ## Architecture
 
-- [docs/doctrine/00-architecture.md](./docs/doctrine/00-architecture.md) — the
-  hexagonal layers, the dependency rule, and why the core stays pure.
-- [docs/doctrine/01-frozen-contracts.md](./docs/doctrine/01-frozen-contracts.md)
-  — the frozen seams every unit imports; changed only via ADR.
+- [docs/doctrine/architecture.md](./docs/doctrine/architecture.md) — the
+  hexagonal layers, the dependency rule, the frozen domain/ports seams, and why
+  the core stays pure.
 - [CONTRIBUTING.md](./CONTRIBUTING.md) — pnpm, `ci:local`, branch-per-unit.

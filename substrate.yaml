@@ -6,7 +6,7 @@
 # required key aborts execution with an explanation (no probing, no fallback).
 version: 1
 gate:
-  compile: "pnpm app:compile"   # tsc --noEmit
+  compile: "pnpm compile"       # tsc --noEmit (app + scripts projects)
   test:    "pnpm test:unit:ci"  # vitest run
   lint:    "pnpm lint"          # eslint .
 

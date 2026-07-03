@@ -10,15 +10,14 @@
   "scripts": {
     "dev": "concurrently -n vite,convex \"vite\" \"convex dev\"",
     "build": "vite build",
-    "app:compile": "tsc --noEmit && tsc --noEmit -p tsconfig.scripts.json",
+    "compile": "tsc --noEmit && tsc --noEmit -p tsconfig.scripts.json",
     "lint": "eslint .",
-    "lint:fix": "eslint . --fix",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "verify:boundaries": "tsx scripts/verify-boundaries.ts",
+    "script:verify-boundaries": "tsx scripts/verify-boundaries.ts",
     "test:unit": "vitest",
     "test:unit:ci": "vitest run",
-    "ci:local": "pnpm app:compile && pnpm lint && pnpm format:check && pnpm verify:boundaries && pnpm test:unit:ci && pnpm build"
+    "ci:local": "pnpm compile && pnpm lint && pnpm format:check && pnpm script:verify-boundaries && pnpm test:unit:ci && pnpm build"
   },
   "devDependencies": {
     "@types/node": "^26.1.0",

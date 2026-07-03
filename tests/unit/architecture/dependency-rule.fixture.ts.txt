@@ -3,8 +3,8 @@ DEPENDENCY-RULE FIXTURE — documentation only (E2). Not compiled, not linted.
 
 This file records, in prose, the canonical violation that the hexagonal
 dependency rule (§2.2) must reject. The LIVE proof that ESLint actually rejects
-it runs on every CI build via `pnpm verify:boundaries`
-(scripts/verify-boundaries.mjs), which writes the snippet below into
+it runs on every CI build via `pnpm script:verify-boundaries`
+(scripts/verify-boundaries.ts), which writes the snippet below into
 src/domain/, runs ESLint, and asserts a non-zero exit.
 
 It is intentionally a `.txt` (not `.ts`) so it is never compiled, imported, or
@@ -33,4 +33,4 @@ ALLOWED — for contrast:
   - adapters/ importing `convex`                                     ✅
   - domain/ importing ONLY other domain modules                     ✅
 
-See docs/doctrine/00-architecture.md and 01-frozen-contracts.md.
+See docs/doctrine/architecture.md.
