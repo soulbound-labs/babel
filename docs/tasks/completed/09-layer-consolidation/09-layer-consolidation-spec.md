@@ -170,3 +170,27 @@ still-passing `verify-boundaries`.
 The identical program under four top-level `src/` dirs — `domain/{entities,ports}`, `adapters/`,
 `presentation/`, `app/` — with the architecture doctrine, the ESLint boundary matrix, and the E2
 boundary prover all updated to match, `pnpm ci:local` green, and `domain → react` still provably rejected.
+
+### Post-execution notes
+
+Executed in `75302a9` (over HEAD `c7d6127`). Deviations from the plan-as-written, worth carrying forward:
+
+1. **Convergent concurrent execution + a silent false-green.** A second agent had already performed the
+   same file moves (`domain/{entities,ports}`, `presentation/`) and committed them — but left
+   `eslint.config.ts` and `verify-boundaries.ts` pointing at the old paths (`src/render`, `src/ports`,
+   `src/domain`, type `domain`). The migration plan assumed a single actor moving _from_ old paths;
+   reality was a half-landed move whose enforcement config never caught up. This commit completed the
+   enforcement + doctrine realignment the moves needed.
+
+2. **The acceptance criterion was necessary but not sufficient.** The plan's "done = `pnpm ci:local`
+   green + `verify-boundaries` prints ✔" **passed on the broken HEAD**: `eslint .` exited 0 while
+   `presentation/` was entirely unclassified, and the E2 probe still landed in a valid element so it too
+   passed. A green gate did not mean the boundary rule was actually enforced on the moved tree.
+   Follow-ups filed this session: a bead to make boundary-config drift **fail-closed** (enable
+   `no-unknown-files` + have `verify-boundaries` assert every element pattern matches a real path), and a
+   `doctrine-amendment` (`babel-w3sx`) to state fail-closed-against-config-drift as an invariant.
+
+3. **Open questions resolved during execution:** the aggregate-`@/domain`-barrel question was settled as
+   **explicit** (`@/domain/entities`, `@/domain/ports`) — forced anyway, since the "no loose files under
+   `src/domain/`" element rule precludes a barrel at `src/domain/index.ts`. `presentation/{render,audio}/`
+   subdirs were kept as planned.
