@@ -28,29 +28,36 @@ describe('INV-R4 — containment (property)', () => {
     expect(isWalkable(SPAWN)).toBe(true);
   });
 
-  it('no sequence of movement deltas escapes the walkable region (10⁴ random walks)', () => {
-    const delta = fc.record({
-      x: fc.double({ min: -0.35, max: 0.35, noNaN: true }),
-      z: fc.double({ min: -0.35, max: 0.35, noNaN: true }),
-    });
-    fc.assert(
-      fc.property(fc.array(delta, { minLength: 1, maxLength: 25 }), (deltas) => {
-        let p = SPAWN;
-        for (const d of deltas) {
-          p = resolveMovement(p, { x: d.x, y: 0, z: d.z });
-          expect(isWalkable(p)).toBe(true);
-          // Never inside the railing ring.
-          expect(Math.hypot(p.x, p.z)).toBeGreaterThanOrEqual(RAILING_KEEPOUT - EPS);
-          // Never beyond the doorway blockers.
-          expect(p.z).toBeLessThanOrEqual(Z_MAX + EPS);
-          expect(p.z).toBeGreaterThanOrEqual(Z_MIN - EPS);
-          // y untouched by collision (flat floor).
-          expect(p.y).toBe(EYE_HEIGHT);
-        }
-      }),
-      { numRuns: 10_000 },
-    );
-  });
+  // 10⁴ runs × ≤25 steps takes ~6 s on a slow CI runner — past vitest's 5 s default.
+  const CONTAINMENT_TIMEOUT_MS = 60_000;
+
+  it(
+    'no sequence of movement deltas escapes the walkable region (10⁴ random walks)',
+    { timeout: CONTAINMENT_TIMEOUT_MS },
+    () => {
+      const delta = fc.record({
+        x: fc.double({ min: -0.35, max: 0.35, noNaN: true }),
+        z: fc.double({ min: -0.35, max: 0.35, noNaN: true }),
+      });
+      fc.assert(
+        fc.property(fc.array(delta, { minLength: 1, maxLength: 25 }), (deltas) => {
+          let p = SPAWN;
+          for (const d of deltas) {
+            p = resolveMovement(p, { x: d.x, y: 0, z: d.z });
+            expect(isWalkable(p)).toBe(true);
+            // Never inside the railing ring.
+            expect(Math.hypot(p.x, p.z)).toBeGreaterThanOrEqual(RAILING_KEEPOUT - EPS);
+            // Never beyond the doorway blockers.
+            expect(p.z).toBeLessThanOrEqual(Z_MAX + EPS);
+            expect(p.z).toBeGreaterThanOrEqual(Z_MIN - EPS);
+            // y untouched by collision (flat floor).
+            expect(p.y).toBe(EYE_HEIGHT);
+          }
+        }),
+        { numRuns: 10_000 },
+      );
+    },
+  );
 
   it('rejects non-finite deltas (stays put, never NaNs)', () => {
     expect(resolveMovement(SPAWN, { x: NaN, y: 0, z: 0.1 })).toEqual(SPAWN);
