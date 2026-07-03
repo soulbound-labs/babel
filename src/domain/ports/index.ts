@@ -7,11 +7,11 @@
  *   - PresencePort    → no-op impl in Unit 03, real Convex impl in Unit 05·B.
  *
  * Unit 02 refines Address/Glyph to their concrete domain shapes (interface
- * bodies unchanged). `ports → domain` is permitted by the boundary rule, and
- * `domain` never imports `ports`, so no cycle is introduced. PlayerState stays
- * loose until Unit 03. See docs/doctrine/architecture.md.
+ * bodies unchanged). `domain/ports → domain/entities` is permitted by the
+ * boundary rule, and `entities` never imports `ports`, so no cycle is
+ * introduced. PlayerState stays loose until Unit 03. See docs/doctrine/architecture.md.
  */
-import type { Glyph, LineAddress } from '../domain';
+import type { Glyph, LineAddress } from '../entities';
 
 /** A ℤ² lattice room address + intra-room position (refined from Unit 01's stub). */
 export type Address = LineAddress;
