@@ -80,7 +80,7 @@ Symptom → cause → fix:
 
 ## 5. Pointers
 
-- `docs/tasks/ongoing/03-world-render/03-world-render-spec.md` §4.6/§7.5 — the frozen
+- `docs/tasks/completed/03-world-render/03-world-render-spec.md` §4.6/§7.5 — the frozen
   bus API and the procedural-ambient decision record.
 - [`render-doctrine.md`](./render-doctrine.md) — `BULB_POSITIONS` freeze, deterministic
   presentation (C4), and the entry-gesture seam shared with pointer lock.
