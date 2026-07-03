@@ -36,7 +36,12 @@ export default defineConfig({
       provider: 'v8',
       reporter: ['text', 'html'],
       include: ['src/**/*.{ts,tsx}'],
-      // No threshold gate in Unit 01 — thresholds land with Unit 02's real logic.
+      // Unit 02: gate the deterministic core at ≥95% (spec §8). Other layers are
+      // report-only until their units land. Enforced when coverage runs
+      // (`vitest run --coverage`).
+      thresholds: {
+        'src/domain/**': { statements: 95, branches: 95, functions: 95, lines: 95 },
+      },
     },
   },
 });

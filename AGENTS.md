@@ -37,159 +37,18 @@ Every change is bound to the doctrines registered in `docs/doctrine/doctrine-man
 
 Add your own stack/domain doctrines with `/substrate:add-doctrine`; each self-registers in the manifest.
 
-<!-- BEGIN TBD INTEGRATION -->
+<!-- BEGIN TBD INTEGRATION format=f06 surface=agents-md -->
 
----
+## tbd
 
-title: tbd Workflow
-description: Full tbd workflow guide for agents
----
+This repository uses **tbd** for git-native issue tracking (beads), spec-driven
+planning, and on-demand engineering guidelines.
+As the agent, you operate tbd on the user’s behalf: translate their requests into tbd
+actions rather than telling them to run commands.
 
-**`tbd` helps humans and agents ship code with greater speed, quality, and discipline.**
+- Run `tbd prime` to load current project state and the full tbd workflow.
+- Run `tbd skill` for the complete reusable tbd skill instructions.
+- Run `tbd shortcut --list` and `tbd guidelines --list` for on-demand resources.
+- Track all work as beads: `tbd create`, `tbd ready`, `tbd close`, and `tbd sync`.
 
-1. **Beads**: Git-native issue tracking (tasks, bugs, features).
-   Never lose work across sessions.
-   Drop-in replacement for `bd`.
-2. **Spec-Driven Workflows**: Plan features → break into beads → implement
-   systematically.
-3. **Knowledge Injection**: engineering guidelines (TypeScript, Python, TDD,
-   testing, and more) available on demand.
-4. **Shortcuts**: Reusable instruction templates for common workflows (code review,
-   commits, PRs, cleanup, handoffs).
-
-## Installation
-
-```bash
-npm install -g get-tbd@latest
-tbd setup --auto --prefix=<name>   # Fresh project (--prefix is REQUIRED: 2-8 alphabetic chars recommended. ALWAYS ASK THE USER FOR THE PREFIX; do not guess it)
-tbd setup --auto                   # Existing tbd project (prefix already set)
-tbd setup --from-beads             # Migration from .beads/ if `bd` has been used
-```
-
-## Routine Commands
-
-```bash
-tbd --help    # Command reference
-tbd status    # Status
-tbd doctor    # If there are problems
-
-tbd setup --auto   # Run any time to refresh setup
-tbd prime      # Restore full context on tbd after compaction
-```
-
-## CRITICAL: You Operate tbd — The User Doesn't
-
-**You are the tbd operator:** Users talk naturally; you translate their requests to tbd
-actions. DO NOT tell users to run tbd commands.
-That's your job.
-
-- **WRONG**: "Run `tbd create` to track this bug"
-
-- **RIGHT**: _(you run `tbd create` yourself and tell the user it's tracked)_
-
-**Welcoming a user:** When users ask "what is tbd?"
-or want help → run `tbd shortcut welcome-user`
-
-## User Request → Agent Action
-
-| User Says                                 | You (the Agent) Run                                      |
-| ----------------------------------------- | -------------------------------------------------------- |
-| **Issues/Beads**                          |                                                          |
-| "There's a bug where …"                   | `tbd create "..." --type=bug`                            |
-| "Create a task/feature for …"             | `tbd create "..." --type=task` or `--type=feature`       |
-| "Let's work on issues/beads"              | `tbd ready`                                              |
-| "Show me issue X"                         | `tbd show <id>`                                          |
-| "Close this issue"                        | `tbd close <id>`                                         |
-| "Search issues for X"                     | `tbd search "X"`                                         |
-| "Add label X to issue"                    | `tbd label add <id> <label>`                             |
-| "What issues are stale?"                  | `tbd stale`                                              |
-| **Planning & Specs**                      |                                                          |
-| "Plan a new feature" / "Create a spec"    | `tbd shortcut new-plan-spec`                             |
-| "Break spec into beads"                   | `tbd shortcut plan-implementation-with-beads`            |
-| "Implement these beads"                   | `tbd shortcut implement-beads`                           |
-| **Code Review & Commits**                 |                                                          |
-| "Review this code" / "Code review"        | `tbd shortcut review-code`                               |
-| "Review this PR"                          | `tbd shortcut review-github-pr`                          |
-| "Commit this" / "Use the commit shortcut" | `tbd shortcut code-review-and-commit`                    |
-| "Create a PR" / "File a PR"               | `tbd shortcut create-or-update-pr-simple`                |
-| "Merge main into my branch"               | `tbd shortcut merge-upstream`                            |
-| **Cleanup & Maintenance**                 |                                                          |
-| "Clean up this code" / "Remove dead code" | `tbd shortcut code-cleanup-all`                          |
-| "Fix repository problems"                 | `tbd doctor --fix`                                       |
-| **Sessions & Handoffs**                   |                                                          |
-| "Hand off to another agent"               | `tbd shortcut agent-handoff`                             |
-| _(your choice whenever appropriate)_      | `tbd list`, `tbd dep add`, `tbd close`, `tbd sync`, etc. |
-
-**Note:** Never gitignore `.tbd/workspaces/` — the outbox must be committed to your
-working branch. See `tbd guidelines tbd-sync-troubleshooting` for details.
-
-## CRITICAL: Session Closing Protocol
-
-**Before saying "done", you MUST complete this checklist:**
-
-```
-[ ] 1. git add + git commit
-[ ] 2. git push
-[ ] 3. gh pr checks <PR> --watch 2>&1 (IMPORTANT: WAIT for final summary, do NOT tell user it is done until you confirm it passes CI!)
-[ ] 4. tbd close/update <id> for all beads worked on
-[ ] 5. tbd sync
-[ ] 6. CONFIRM CI passed (if failed: fix, run tests, re-push, restart from step 3)
-```
-
-**Work is not done until pushed, CI passes, and tbd is synced.**
-
-## Bead Tracking Rules
-
-- Track all task work not done immediately as beads (discovered work, TODOs,
-  multi-session work)
-- When in doubt, create a bead
-- Check `tbd ready` when not given specific directions
-- Always close/update beads and run `tbd sync` at session end
-
-## Commands
-
-### Finding Work
-
-| Command                         | Purpose                           |
-| ------------------------------- | --------------------------------- |
-| `tbd ready`                     | Beads ready to work (no blockers) |
-| `tbd list --status open`        | All open beads                    |
-| `tbd list --status in_progress` | Your active work                  |
-| `tbd show <id>`                 | Bead details with dependencies    |
-
-### Creating & Updating
-
-| Command                                                      | Purpose                                 |
-| ------------------------------------------------------------ | --------------------------------------- |
-| `tbd create "title" --type task\|bug\|feature --priority=P2` | New bead (P0-P4, not "high/medium/low") |
-| `tbd update <id> --status in_progress`                       | Claim work                              |
-| `tbd close <id> [--reason "..."]`                            | Mark complete                           |
-
-### Dependencies & Sync
-
-| Command                           | Purpose                                   |
-| --------------------------------- | ----------------------------------------- |
-| `tbd dep add <bead> <depends-on>` | Add dependency                            |
-| `tbd blocked`                     | Show blocked beads                        |
-| `tbd sync`                        | Sync with git remote (run at session end) |
-| `tbd stats`                       | Project statistics                        |
-| `tbd doctor`                      | Check for problems                        |
-| `tbd doctor --fix`                | Auto-fix repository problems              |
-
-### Labels & Search
-
-| Command                      | Purpose                          |
-| ---------------------------- | -------------------------------- |
-| `tbd search <query>`         | Search issues by text            |
-| `tbd label add <id> <label>` | Add label to issue               |
-| `tbd stale`                  | List issues not updated recently |
-
-## Quick Reference
-
-- **Priority**: P0=critical, P1=high, P2=medium (default), P3=low, P4=backlog
-- **Types**: task, bug, feature, epic
-- **Status**: open, in_progress, closed
-- **JSON output**: Add `--json` to any command
-
-The full shortcut + guideline directory is generated per-project by `tbd setup --auto`.
 <!-- END TBD INTEGRATION -->

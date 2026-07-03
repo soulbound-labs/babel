@@ -87,9 +87,19 @@ export default tseslint.config(
             },
 
             // --- External/core packages ---
-            // domain & ports get NO external grant → any framework import
-            // (react/three/convex/node core) is a violation. This is the
+            // domain & ports get NO general external grant → any framework
+            // import (react/three/convex/node core) is a violation. This is the
             // deterministic-core invariant, enforced by omission.
+            //
+            // The SINGLE exception: the pure core may import `@noble/hashes`
+            // (audited, zero-dep SHA-256/HMAC — Unit 02 C1). This narrow allow
+            // does NOT weaken the guarantee: every other external is still a
+            // violation by omission, and `pnpm script:verify-boundaries` still
+            // proves `domain → react` is rejected.
+            {
+              from: { type: 'domain' },
+              allow: { to: { origin: 'external' }, dependency: { module: '@noble/hashes' } },
+            },
             //
             // Outer layers may use third-party + node core freely...
             {

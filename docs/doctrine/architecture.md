@@ -53,11 +53,11 @@ the Unit 01 spec).
 
 ```
 src/
-├── domain/        # PURE. ℤ² lattice + cipher. (Unit 02 fills this.)
+├── domain/        # PURE. ℤ² lattice + cipher. POPULATED & FROZEN (Unit 02).
 │   ├── coordinates/   reduce(), hash()
 │   ├── content/       line(), inverse()
-│   └── index.ts       the FROZEN public barrel
-├── ports/         interfaces only (ContentProvider, PresencePort, …)
+│   └── index.ts       the FROZEN public barrel — populated with the §4.10 surface
+├── ports/         interfaces only (ContentProvider, PresencePort, …)  — Address/Glyph refined to LineAddress/string by Unit 02
 ├── adapters/      port implementations
 ├── render/        R3F scene composition (placeholder in Unit 01)
 ├── audio/         positional audio bus (Unit 03)

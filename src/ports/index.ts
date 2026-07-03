@@ -6,17 +6,18 @@
  *   - ContentProvider → implemented by the pure core in Unit 02.
  *   - PresencePort    → no-op impl in Unit 03, real Convex impl in Unit 05·B.
  *
- * The placeholder types below are deliberately loose (`unknown`); their real
- * shapes are finalized in Unit 02 (Address/Glyph, alongside reduce/hash/line/
- * inverse) and Unit 03 (PlayerState). Keeping them loose here avoids committing
- * the cipher/render design before it exists — see the frozen seams in docs/doctrine/architecture.md.
+ * Unit 02 refines Address/Glyph to their concrete domain shapes (interface
+ * bodies unchanged). `ports → domain` is permitted by the boundary rule, and
+ * `domain` never imports `ports`, so no cycle is introduced. PlayerState stays
+ * loose until Unit 03. See docs/doctrine/architecture.md.
  */
+import type { Glyph, LineAddress } from '../domain';
 
-/** A ℤ² lattice address `(n, floor)` + intra-volume position. Shape finalized in Unit 02. */
-export type Address = unknown;
+/** A ℤ² lattice room address + intra-room position (refined from Unit 01's stub). */
+export type Address = LineAddress;
 
-/** A single glyph from the 29-char alphabet. Shape finalized in Unit 02. */
-export type Glyph = unknown;
+/** A single glyph from the 29-char alphabet (refined from Unit 01's stub). */
+export type { Glyph };
 
 /** A player's presence/pose in the world. Shape finalized in Unit 03. */
 export type PlayerState = unknown;
