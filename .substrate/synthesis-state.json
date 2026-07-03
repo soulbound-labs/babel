@@ -12,6 +12,7 @@
     "started": "2026-07-03T21:00:34Z",
     "completed": "2026-07-03T21:00:34Z",
     "completed-steps": [4, 5, 6, 7, 8, 9, 10],
-    "context": "full"
+    "context": "full",
+    "narrative-commit": "d072c74"
   }
 }
