@@ -1,0 +1,36 @@
+DEPENDENCY-RULE FIXTURE — documentation only (E2). Not compiled, not linted.
+================================================================================
+
+This file records, in prose, the canonical violation that the hexagonal
+dependency rule (§2.2) must reject. The LIVE proof that ESLint actually rejects
+it runs on every CI build via `pnpm verify:boundaries`
+(scripts/verify-boundaries.mjs), which writes the snippet below into
+src/domain/, runs ESLint, and asserts a non-zero exit.
+
+It is intentionally a `.txt` (not `.ts`) so it is never compiled, imported, or
+linted — it is a spec, not code.
+
+--------------------------------------------------------------------------------
+FORBIDDEN — a file under src/domain/ importing a framework:
+
+    // src/domain/anything.ts
+    import { useState } from 'react';   // ❌ domain must stay pure
+    export const x = useState;
+
+Expected ESLint result: ERROR from `boundaries/dependencies` —
+  "There is no rule allowing dependencies from elements of type \"domain\"
+   to elements of origin \"external\" with module \"react\""
+Exit code: non-zero (fails `pnpm lint`, fails CI).
+
+The same holds for `three`, `convex`, any `@react-three/*`, node core, or any
+import of an outward layer (application/adapters/render/audio/app) from domain.
+--------------------------------------------------------------------------------
+
+ALLOWED — for contrast:
+
+  - render/ importing `three`, `react`, `@react-three/fiber`         ✅
+  - app/ importing anything inward + external                        ✅
+  - adapters/ importing `convex`                                     ✅
+  - domain/ importing ONLY other domain modules                     ✅
+
+See docs/doctrine/00-architecture.md and 01-frozen-contracts.md.

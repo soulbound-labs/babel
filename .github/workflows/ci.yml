@@ -1,0 +1,51 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+# Cancel superseded runs on the same ref.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: compile · lint · test · build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # Reads the pinned pnpm version from package.json "packageManager".
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install (frozen lockfile)
+        run: pnpm install --frozen-lockfile
+
+      # Ordered gates — mirror `pnpm ci:local`. No Convex/deploy secrets here;
+      # CI validates compile/lint/test/build only (E1).
+      - name: Typecheck
+        run: pnpm app:compile
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Format check
+        run: pnpm format:check
+
+      - name: Prove dependency-rule enforcement (E2)
+        run: pnpm verify:boundaries
+
+      - name: Unit tests
+        run: pnpm test:unit:ci
+
+      - name: Build
+        run: pnpm build

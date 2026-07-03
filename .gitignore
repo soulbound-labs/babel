@@ -1,0 +1,25 @@
+# dependencies
+node_modules/
+
+# build output
+dist/
+
+# env / secrets
+.env.local
+.env.*.local
+.envrc
+
+# convex
+.convex/
+convex/_generated/
+
+# test coverage
+coverage/
+
+# OS / editor junk
+.DS_Store
+Thumbs.db
+*.log
+.idea/
+.vscode/
+*.swp
