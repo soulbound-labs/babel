@@ -120,6 +120,7 @@ export function LocomotionController({ initialPose, handleRef }: LocomotionContr
             pitch,
           },
           velocity: { x: 0, z: 0 },
+          surface: stateRef.current.surface,
           suspended: false,
         };
         inputRef.current.yaw = yaw;

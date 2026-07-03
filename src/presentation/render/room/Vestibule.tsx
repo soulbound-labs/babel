@@ -1,9 +1,12 @@
 /**
- * The vestibule beyond side 3 (§4.1): a narrow hallway with two closet
- * doorways (placeholder dark recesses — one per flank), the mirror surface,
- * and the static spiral staircase winding through a stairwell opening in
- * floor and ceiling. The far end is fog-black; walking stops at the stair
- * mouth (collision §7.3). Runs along -z from the hexagon's side-3 wall.
+ * The vestibule beyond side 3 (§4.1, Unit 04 KDD-1): a narrow hallway with
+ * the R1 stair ALCOVE bulging from the −x flank — the stair axis sits at
+ * (x = STAIR_AXIS_X, z = STAIR_CENTER_Z), off the door-to-door walk line, so
+ * corridor traversal and the walkable spiral coexist. A straight walk lane
+ * x ∈ [+0.30, +1.00] runs past the mirror to the far-cap door (centered
+ * x = FAR_DOOR_CENTER_X), which aligns with the next room's entrance. The
+ * spiral cross-section is byte-identical to Unit 03 — only world placement
+ * moved (frozen seam, Unit 03 spec §7.3).
  */
 import { useMemo } from 'react';
 import { BufferGeometry, Path, PlaneGeometry, Shape, ShapeGeometry } from 'three';
@@ -11,6 +14,8 @@ import { BufferGeometry, Path, PlaneGeometry, Shape, ShapeGeometry } from 'three
 import {
   CEILING_HEIGHT,
   CLOSET_SIDE,
+  DOOR_HEIGHT,
+  DOOR_WIDTH,
   HEX_APOTHEM,
   MIRROR_HEIGHT,
   STAIR_RADIUS,
@@ -21,70 +26,119 @@ import { stoneMaterial, voidMaterial } from './materials';
 import { MirrorSurface } from './MirrorSurface';
 import { mustMerge, wallForSide } from './Room';
 import { Staircase } from './Staircase';
+import { ALCOVE_BACK_X, ALCOVE_NEAR_Z, STAIR_AXIS_X, STAIR_AXIS_Z } from '../player/stair';
 
 const NEAR_Z = -HEX_APOTHEM; // shared wall with the hexagon (side 3)
 const FAR_Z = -(HEX_APOTHEM + VESTIBULE_DEPTH);
 const HALF_W = VESTIBULE_WIDTH / 2;
-/** Stair axis: in the fog-eaten far zone, mouth at the walk blocker (§7.3). */
-export const STAIR_CENTER_Z = -(HEX_APOTHEM + VESTIBULE_DEPTH - 0.9);
+/** Stair axis (KDD-1): in the −x alcove, clear of the walk lane — canonical values in stair.ts. */
+export const STAIR_CENTER_Z = STAIR_AXIS_Z;
+/** Far-cap door center — where the next room's entrance door aligns (+0.55 lateral drift/hop). */
+export const FAR_DOOR_CENTER_X = 0.55;
 const STAIRWELL_RADIUS = STAIR_RADIUS + 0.06;
 
-/** Vestibule floor/ceiling rectangle with the circular stairwell opening. */
-function slabWithStairwell(): Shape {
+/**
+ * Vestibule + alcove footprint as a 2D shape, with the circular stairwell
+ * opening around the stair axis. `zToShapeY` maps world z to shape-space y:
+ * −z for the floor (rotateX(−π/2)), +z for the ceiling (rotateX(+π/2)) — both
+ * land on the same world footprint with opposite normals. ShapeGeometry
+ * normalizes winding, so the mirrored variant triangulates correctly.
+ */
+function slabWithStairwell(zToShapeY: (z: number) => number): Shape {
+  const corners: [number, number][] = [
+    [-HALF_W, NEAR_Z],
+    [HALF_W, NEAR_Z],
+    [HALF_W, FAR_Z],
+    [ALCOVE_BACK_X, FAR_Z],
+    [ALCOVE_BACK_X, ALCOVE_NEAR_Z],
+    [-HALF_W, ALCOVE_NEAR_Z],
+  ];
   const shape = new Shape();
-  shape.moveTo(-HALF_W, -NEAR_Z);
-  shape.lineTo(HALF_W, -NEAR_Z);
-  shape.lineTo(HALF_W, -FAR_Z);
-  shape.lineTo(-HALF_W, -FAR_Z);
+  corners.forEach(([x, z], i) =>
+    i === 0 ? shape.moveTo(x, zToShapeY(z)) : shape.lineTo(x, zToShapeY(z)),
+  );
   shape.closePath();
   const hole = new Path();
-  hole.absarc(0, -STAIR_CENTER_Z, STAIRWELL_RADIUS, 0, Math.PI * 2, true);
+  hole.absarc(STAIR_AXIS_X, zToShapeY(STAIR_CENTER_Z), STAIRWELL_RADIUS, 0, Math.PI * 2, true);
   shape.holes.push(hole);
   return shape;
 }
 
 function vestibuleShell(): BufferGeometry {
   const geoms: BufferGeometry[] = [];
-  const midZ = (NEAR_Z + FAR_Z) / 2;
 
-  // Flank walls (inward-facing) and the far cap.
-  for (const dir of [-1, 1]) {
-    const flank = new PlaneGeometry(VESTIBULE_DEPTH, CEILING_HEIGHT);
-    flank.rotateY(dir * (Math.PI / 2));
-    flank.translate(-dir * HALF_W, CEILING_HEIGHT / 2, midZ);
-    geoms.push(flank);
+  // +x flank — full straight wall (the walk lane runs along it).
+  const rightFlank = new PlaneGeometry(VESTIBULE_DEPTH, CEILING_HEIGHT);
+  rightFlank.rotateY(Math.PI / 2);
+  rightFlank.translate(HALF_W, CEILING_HEIGHT / 2, (NEAR_Z + FAR_Z) / 2);
+  geoms.push(rightFlank);
+
+  // −x flank — near segment up to the alcove mouth…
+  const nearSeg = new PlaneGeometry(ALCOVE_NEAR_Z - NEAR_Z, CEILING_HEIGHT);
+  nearSeg.rotateY(-Math.PI / 2);
+  nearSeg.translate(-HALF_W, CEILING_HEIGHT / 2, (NEAR_Z + ALCOVE_NEAR_Z) / 2);
+  geoms.push(nearSeg);
+
+  // …the alcove back wall…
+  const alcoveBack = new PlaneGeometry(FAR_Z - ALCOVE_NEAR_Z, CEILING_HEIGHT);
+  alcoveBack.rotateY(-Math.PI / 2);
+  alcoveBack.translate(ALCOVE_BACK_X, CEILING_HEIGHT / 2, (ALCOVE_NEAR_Z + FAR_Z) / 2);
+  geoms.push(alcoveBack);
+
+  // …and the connector wall across the alcove mouth (faces into the alcove).
+  const connector = new PlaneGeometry(-HALF_W - ALCOVE_BACK_X, CEILING_HEIGHT);
+  connector.translate((ALCOVE_BACK_X + -HALF_W) / 2, CEILING_HEIGHT / 2, ALCOVE_NEAR_Z);
+  geoms.push(connector);
+
+  // Far cap with the door gap (jamb + lintel) centered at FAR_DOOR_CENTER_X.
+  // Phase 3 renders this conditionally (edge rooms only); unconditional here.
+  const doorLeft = FAR_DOOR_CENTER_X - DOOR_WIDTH / 2;
+  const doorRight = FAR_DOOR_CENTER_X + DOOR_WIDTH / 2;
+  const leftJamb = new PlaneGeometry(doorLeft - ALCOVE_BACK_X, CEILING_HEIGHT);
+  leftJamb.translate((ALCOVE_BACK_X + doorLeft) / 2, CEILING_HEIGHT / 2, FAR_Z);
+  geoms.push(leftJamb);
+  if (doorRight < HALF_W - 1e-9) {
+    const rightJamb = new PlaneGeometry(HALF_W - doorRight, CEILING_HEIGHT);
+    rightJamb.translate((doorRight + HALF_W) / 2, CEILING_HEIGHT / 2, FAR_Z);
+    geoms.push(rightJamb);
   }
-  const farCap = new PlaneGeometry(VESTIBULE_WIDTH, CEILING_HEIGHT);
-  farCap.translate(0, CEILING_HEIGHT / 2, FAR_Z);
-  geoms.push(farCap);
+  const lintelHeight = CEILING_HEIGHT - DOOR_HEIGHT;
+  const lintel = new PlaneGeometry(DOOR_WIDTH, lintelHeight);
+  lintel.translate(FAR_DOOR_CENTER_X, DOOR_HEIGHT + lintelHeight / 2, FAR_Z);
+  geoms.push(lintel);
 
   // Vestibule-side face of the shared side-3 wall (jambs + lintel around the door).
   geoms.push(...wallForSide(3, 'out'));
 
-  // Floor and ceiling with the stairwell opening. Shape-space y maps to -z.
-  const slab = slabWithStairwell();
-  const floor = new ShapeGeometry(slab);
-  floor.rotateX(-Math.PI / 2);
+  // Floor and ceiling with the stairwell opening.
+  const floor = new ShapeGeometry(slabWithStairwell((z) => -z));
+  floor.rotateX(-Math.PI / 2); // shape y → −z, normal +y
   geoms.push(floor);
-  const ceiling = new ShapeGeometry(slab);
-  ceiling.rotateX(-Math.PI / 2); // same footprint as the floor…
-  ceiling.rotateZ(Math.PI); // …then flip the normal to -y (x is symmetric)
+  const ceiling = new ShapeGeometry(slabWithStairwell((z) => z));
+  ceiling.rotateX(Math.PI / 2); // shape y → +z, normal −y
   ceiling.translate(0, CEILING_HEIGHT, 0);
   geoms.push(ceiling);
 
   return mustMerge(geoms);
 }
 
-/** Placeholder closet doorways: dark recessed rectangles, one per flank. Unit 06 deepens them. */
+/** Placeholder closet doorways: dark recessed rectangles, one per flank. Unit 06 deepens them.
+ * The −x doorway sits on the wall segment between hexagon and alcove mouth — nudged toward
+ * the hexagon and narrowed to fit (the alcove displaced its Unit 03 position). */
 function closetDoorways(): BufferGeometry {
   const geoms: BufferGeometry[] = [];
-  const doorZ = NEAR_Z - CLOSET_SIDE; // just inside the hallway
-  for (const dir of [-1, 1]) {
-    const doorway = new PlaneGeometry(CLOSET_SIDE, 1.7);
-    doorway.rotateY(dir * (Math.PI / 2));
-    doorway.translate(-dir * (HALF_W - 0.01), 1.7 / 2, doorZ);
-    geoms.push(doorway);
-  }
+
+  const rightDoor = new PlaneGeometry(CLOSET_SIDE, 1.7);
+  rightDoor.rotateY(Math.PI / 2);
+  rightDoor.translate(HALF_W - 0.01, 1.7 / 2, NEAR_Z - CLOSET_SIDE);
+  geoms.push(rightDoor);
+
+  const leftSegLength = ALCOVE_NEAR_Z - NEAR_Z; // 0.568 m of wall available
+  const leftDoor = new PlaneGeometry(Math.min(CLOSET_SIDE, leftSegLength - 0.07), 1.7);
+  leftDoor.rotateY(-Math.PI / 2);
+  leftDoor.translate(-(HALF_W - 0.01), 1.7 / 2, (NEAR_Z + ALCOVE_NEAR_Z) / 2);
+  geoms.push(leftDoor);
+
   return mustMerge(geoms);
 }
 
@@ -103,7 +157,7 @@ export function Vestibule() {
         position={[HALF_W - 0.02, MIRROR_HEIGHT / 2 + 0.3, -(HEX_APOTHEM + 1.8)]}
         rotationY={-Math.PI / 2}
       />
-      <group position={[0, 0, STAIR_CENTER_Z]}>
+      <group position={[STAIR_AXIS_X, 0, STAIR_CENTER_Z]}>
         <Staircase />
       </group>
     </group>
