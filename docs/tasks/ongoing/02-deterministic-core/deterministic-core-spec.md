@@ -42,18 +42,18 @@ space**, two iconic behaviours fall out for free and are locked by tests:
 
 ## 2. Scope
 
-| In Scope | Out of Scope |
-|----------|--------------|
-| Coordinate algebra: `moveVector`, `applyMove`, `invertMove`, `reduce` | Rendering of anything (Unit 03) |
-| Coordinate `hash()` (SHA-256, for bookmarks/URLs/presence) | Search UI / result rendering (Unit 06) |
-| Alphabet + base-29 codec | Convex, React, Node I/O, network, filesystem |
-| Ulam-shell pairing `pair`/`unpair` (ℤ²↔ℕ, bigint) | WASM/Rust adapter (seam only — §7.2) |
-| Line-index codec `encodeLineIndex`/`decodeLineIndex` | Depth-dependent semantic entropy (relocated to render — §7.1) |
-| Balanced Feistel permutation + inverse | 6-way honeycomb moves (v2; MVP ships 4 linear moves) |
-| Cipher `line()` / `inverse()` | Any change to `src/ports/` interfaces beyond type-refinement of `Address`/`Glyph` |
-| `LocalContentProvider` adapter (delegates to domain) | Persisting/caching content |
-| Frozen `src/domain/index.ts` barrel | The v2 "entropy deepens with distance" *cipher* behaviour (proven impossible — §7.1) |
-| Golden-vector lock + property tests + ≥95% domain coverage | |
+| In Scope                                                              | Out of Scope                                                                         |
+| --------------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
+| Coordinate algebra: `moveVector`, `applyMove`, `invertMove`, `reduce` | Rendering of anything (Unit 03)                                                      |
+| Coordinate `hash()` (SHA-256, for bookmarks/URLs/presence)            | Search UI / result rendering (Unit 06)                                               |
+| Alphabet + base-29 codec                                              | Convex, React, Node I/O, network, filesystem                                         |
+| Ulam-shell pairing `pair`/`unpair` (ℤ²↔ℕ, bigint)                     | WASM/Rust adapter (seam only — §7.2)                                                 |
+| Line-index codec `encodeLineIndex`/`decodeLineIndex`                  | Depth-dependent semantic entropy (relocated to render — §7.1)                        |
+| Balanced Feistel permutation + inverse                                | 6-way honeycomb moves (v2; MVP ships 4 linear moves)                                 |
+| Cipher `line()` / `inverse()`                                         | Any change to `src/ports/` interfaces beyond type-refinement of `Address`/`Glyph`    |
+| `LocalContentProvider` adapter (delegates to domain)                  | Persisting/caching content                                                           |
+| Frozen `src/domain/index.ts` barrel                                   | The v2 "entropy deepens with distance" _cipher_ behaviour (proven impossible — §7.1) |
+| Golden-vector lock + property tests + ≥95% domain coverage            |                                                                                      |
 
 **Prerequisites (must already exist — verified true in this repo):**
 `src/ports/index.ts` (Unit 01 forward-declared ports), `src/domain/index.ts`
@@ -102,21 +102,22 @@ space**, two iconic behaviours fall out for free and are locked by tests:
 
 ```ts
 // src/domain/coordinates/types.ts
-export type Coordinate = { n: bigint; floor: bigint };          // ℤ² lattice room address
-export type Move = 'forward' | 'back' | 'up' | 'down';          // MVP: 4 moves (linear chain + stairs)
+export type Coordinate = { n: bigint; floor: bigint }; // ℤ² lattice room address
+export type Move = 'forward' | 'back' | 'up' | 'down'; // MVP: 4 moves (linear chain + stairs)
 export const ORIGIN: Coordinate = { n: 0n, floor: 0n };
 
 // src/domain/content/types.ts
-export type LineAddress = {           // the cipher's input granularity
-  n: bigint;                          // room coordinate (ℤ)
-  floor: bigint;                      // room coordinate (ℤ)
-  wall: number;                       // 0..3   (4 book-walls; the other 2 hexagon sides are doors)
-  shelf: number;                      // 0..4
-  volume: number;                     // 0..31
-  page: number;                       // 0..409
-  line: number;                       // 0..39
+export type LineAddress = {
+  // the cipher's input granularity
+  n: bigint; // room coordinate (ℤ)
+  floor: bigint; // room coordinate (ℤ)
+  wall: number; // 0..3   (4 book-walls; the other 2 hexagon sides are doors)
+  shelf: number; // 0..4
+  volume: number; // 0..31
+  page: number; // 0..409
+  line: number; // 0..39
 };
-export type Glyph = string;           // exactly one char from ALPHABET (runtime invariant, not compile-enforced)
+export type Glyph = string; // exactly one char from ALPHABET (runtime invariant, not compile-enforced)
 ```
 
 `LineAddress` is the concrete refinement of Unit 01's loosely-stubbed `Address`.
@@ -125,16 +126,16 @@ A full on-screen glyph is `LineAddress + col (0..79)`; `col` indexes into
 
 ### 4.2 The Borges constants (frozen)
 
-| Quantity | Value | Const name |
-|---|---|---|
-| Alphabet size | **29** (` ` + `a–z` + `,` + `.`) | `ALPHABET.length` |
-| book-walls / hexagon | 4 | `WALLS` |
-| shelves / wall | 5 | `SHELVES` |
-| volumes / shelf | 32 | `VOLUMES` |
-| pages / volume | 410 | `PAGES` |
-| lines / page | 40 | `LINES` |
-| chars / line | 80 | `COLS` |
-| lines / room | **10,496,000** (4·5·32·410·40) | `LINES_PER_ROOM` |
+| Quantity             | Value                            | Const name        |
+| -------------------- | -------------------------------- | ----------------- |
+| Alphabet size        | **29** (` ` + `a–z` + `,` + `.`) | `ALPHABET.length` |
+| book-walls / hexagon | 4                                | `WALLS`           |
+| shelves / wall       | 5                                | `SHELVES`         |
+| volumes / shelf      | 32                               | `VOLUMES`         |
+| pages / volume       | 410                              | `PAGES`           |
+| lines / page         | 40                               | `LINES`           |
+| chars / line         | 80                               | `COLS`            |
+| lines / room         | **10,496,000** (4·5·32·410·40)   | `LINES_PER_ROOM`  |
 
 ### 4.3 Derived cryptographic constants (frozen)
 
@@ -190,21 +191,21 @@ is the origin (index 0). Cumulative count of all cells in rings `0..k-1` is
 counter-clockwise over four edges of length `2k`, corners assigned to exactly one
 edge:
 
-| offset `o` in `[0, 8k)` | cell |
-|---|---|
-| `o ∈ [0, 2k)`  | `n = k`,        `floor = -k + o`          |
-| `o ∈ [2k, 4k)` | `floor = k`,    `n = k - (o - 2k)`         |
-| `o ∈ [4k, 6k)` | `n = -k`,       `floor = k - (o - 4k)`     |
-| `o ∈ [6k, 8k)` | `floor = -k`,   `n = -k + (o - 6k)`        |
+| offset `o` in `[0, 8k)` | cell                              |
+| ----------------------- | --------------------------------- |
+| `o ∈ [0, 2k)`           | `n = k`, `floor = -k + o`         |
+| `o ∈ [2k, 4k)`          | `floor = k`, `n = k - (o - 2k)`   |
+| `o ∈ [4k, 6k)`          | `n = -k`, `floor = k - (o - 4k)`  |
+| `o ∈ [6k, 8k)`          | `floor = -k`, `n = -k + (o - 6k)` |
 
 **`pair(n, floor)`** — if `n==0 && floor==0` return `0n`; else `k = max(|n|,|floor|)`,
 then classify onto exactly one edge (bounds below are disjoint and exhaustive) to
 get `o`, return `start(k) + o`:
 
-- `n == k  && -k ≤ floor ≤ k-1`  → `o = floor + k`
-- `floor == k && -k+1 ≤ n ≤ k`   → `o = 2k + (k - n)`
-- `n == -k && -k+1 ≤ floor ≤ k`  → `o = 4k + (k - floor)`
-- `floor == -k && -k ≤ n ≤ k-1`  → `o = 6k + (n + k)`
+- `n == k  && -k ≤ floor ≤ k-1` → `o = floor + k`
+- `floor == k && -k+1 ≤ n ≤ k` → `o = 2k + (k - n)`
+- `n == -k && -k+1 ≤ floor ≤ k` → `o = 4k + (k - floor)`
+- `floor == -k && -k ≤ n ≤ k-1` → `o = 6k + (n + k)`
 
 **`unpair(room)`** — if `room==0` return `{n:0n, floor:0n}`; else
 `s = isqrt(room)`, `k = (s + 1n) / 2n`, `o = room - start(k)` (`o ∈ [0, 8k)`),
@@ -217,8 +218,12 @@ convergence (returns the unique `r` with `r² ≤ v < (r+1)²`):
 function isqrt(v: bigint): bigint {
   if (v < 0n) throw new RangeError('isqrt of negative');
   if (v < 2n) return v;
-  let x = v, y = (x + 1n) >> 1n;
-  while (y < x) { x = y; y = (x + v / x) >> 1n; }
+  let x = v,
+    y = (x + 1n) >> 1n;
+  while (y < x) {
+    x = y;
+    y = (x + v / x) >> 1n;
+  }
   return x;
 }
 ```
@@ -314,7 +319,7 @@ unit refines them **without changing the `ContentProvider`/`PresencePort`
 interface shapes**:
 
 ```ts
-import type { LineAddress, Glyph } from '../domain';   // relative — ports→domain is lint-allowed (C8)
+import type { LineAddress, Glyph } from '../domain'; // relative — ports→domain is lint-allowed (C8)
 export type Address = LineAddress;
 export type { Glyph };
 // ContentProvider / PresencePort interface bodies unchanged (still line/inverse, publish/subscribe)
@@ -331,38 +336,38 @@ export type { Glyph };
 Each has a machine-checkable property test (§8). `INV` ids are referenced by the
 FMEA (§9) and verification (§10).
 
-| # | Invariant | Check |
-|---|---|---|
-| INV-1 | **Loop closure.** `reduce(['forward','back']) === ORIGIN`; `reduce(['up','forward','down','back']) === ORIGIN`. | Property #1 |
-| INV-2 | **Path-independence.** Any two move sequences with equal net vector reduce to the same coordinate. | Property #2 |
-| INV-3 | **Move inverses.** `applyMove(applyMove(c,m), invertMove(m)) === c`. | Property #3 |
-| INV-4 | **Hash determinism + no observed collision** across 10⁴ distinct coords. | Property #4 |
-| INV-5 | **Pairing bijectivity.** `unpair(pair(n,floor)) === {n,floor}` for `|n|,|floor| ≤ 512`; `pair(unpair(k)) === k` for `k < 4·10⁶`. | Property #7 |
-| INV-6 | **Large-room pairing bijectivity.** `pair(unpair(k)) === k` at ring boundaries `start(k)`, `start(k)±1`, and near `ROOM_MAX-1`, for `k` up to ~10⁹ and beyond. | Property #7b |
-| INV-7 | **Base-29 round-trip.** `base29Decode(base29Encode(g)) === g` for any `Glyph[80]`. | Property #10 |
-| INV-8 | **Feistel bijectivity.** `feistelInverse(feistel(x)) === x` and `feistel(x) ∈ [0, M)` for random `x ∈ [0, M)`. | Property #12 |
-| INV-9 | **Cipher determinism.** `line(a) === line(a)`. | Property #5 |
-| INV-10 | **Forward round-trip.** `inverse(line(a)) === a` for random in-box `a`. | Property #6 |
-| INV-11 | **Reverse round-trip (the search path).** For random `Glyph[80]` g: if `inverse(g) !== null` then `line(inverse(g)) === g`. | Property #6b |
-| INV-12 | **Alphabet & length integrity.** Every `line(a)` has length 80; every glyph ∈ `ALPHABET`. | Property #8 |
-| INV-13 | **Bijection tripwire.** 10⁴ distinct addresses → 10⁴ distinct lines (guaranteed by construction; catches accidental `Number()` truncation / key mixups). | Property #9 |
-| INV-14 | **Golden vector.** `line({n:0n,floor:0n,wall:0,shelf:0,volume:0,page:0,line:0}).join('')` equals the committed 80-char string. | Property #11 |
-| INV-15 | **Framework-free core.** No `three`/`react`/`convex` import under `src/domain/`; `pnpm script:verify-boundaries` green. | §10 gate |
+| #      | Invariant                                                                                                                                                      | Check        |
+| ------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------ |
+| INV-1  | **Loop closure.** `reduce(['forward','back']) === ORIGIN`; `reduce(['up','forward','down','back']) === ORIGIN`.                                                | Property #1  |
+| INV-2  | **Path-independence.** Any two move sequences with equal net vector reduce to the same coordinate.                                                             | Property #2  |
+| INV-3  | **Move inverses.** `applyMove(applyMove(c,m), invertMove(m)) === c`.                                                                                           | Property #3  |
+| INV-4  | **Hash determinism + no observed collision** across 10⁴ distinct coords.                                                                                       | Property #4  |
+| INV-5  | **Pairing bijectivity.** `unpair(pair(n,floor)) === {n,floor}` for `                                                                                           | n            | ,   | floor | ≤ 512`; `pair(unpair(k)) === k`for`k < 4·10⁶`. | Property #7 |
+| INV-6  | **Large-room pairing bijectivity.** `pair(unpair(k)) === k` at ring boundaries `start(k)`, `start(k)±1`, and near `ROOM_MAX-1`, for `k` up to ~10⁹ and beyond. | Property #7b |
+| INV-7  | **Base-29 round-trip.** `base29Decode(base29Encode(g)) === g` for any `Glyph[80]`.                                                                             | Property #10 |
+| INV-8  | **Feistel bijectivity.** `feistelInverse(feistel(x)) === x` and `feistel(x) ∈ [0, M)` for random `x ∈ [0, M)`.                                                 | Property #12 |
+| INV-9  | **Cipher determinism.** `line(a) === line(a)`.                                                                                                                 | Property #5  |
+| INV-10 | **Forward round-trip.** `inverse(line(a)) === a` for random in-box `a`.                                                                                        | Property #6  |
+| INV-11 | **Reverse round-trip (the search path).** For random `Glyph[80]` g: if `inverse(g) !== null` then `line(inverse(g)) === g`.                                    | Property #6b |
+| INV-12 | **Alphabet & length integrity.** Every `line(a)` has length 80; every glyph ∈ `ALPHABET`.                                                                      | Property #8  |
+| INV-13 | **Bijection tripwire.** 10⁴ distinct addresses → 10⁴ distinct lines (guaranteed by construction; catches accidental `Number()` truncation / key mixups).       | Property #9  |
+| INV-14 | **Golden vector.** `line({n:0n,floor:0n,wall:0,shelf:0,volume:0,page:0,line:0}).join('')` equals the committed 80-char string.                                 | Property #11 |
+| INV-15 | **Framework-free core.** No `three`/`react`/`convex` import under `src/domain/`; `pnpm script:verify-boundaries` green.                                        | §10 gate     |
 
 ---
 
 ## 6. Error Handling & Edge Cases
 
-| # | Case | Behaviour |
-|---|---|---|
-| E1 | Out-of-range intra field (`wall`/`shelf`/`volume`/`page`/`line`) | `encodeLineIndex` throws `RangeError` (programmer bug; never user input in MVP). |
-| E2 | `inverse` on unaddressable content (sub-room remainder) | returns `null`. Unit 06 must render as "exists in the library, at no walkable coordinate." |
-| E3 | Accidental `number` coercion in index math | Banned by review + `@typescript-eslint`; the golden vector (INV-14) catches any `Number()` truncation instantly. |
-| E4 | HMAC input width | `R` serialised to fixed 25-byte big-endian (`R_BYTES`), so the PRF domain is unambiguous and stable forever. |
-| E5 | Library drift (any change to `ALPHABET`, radices, `BABEL_KEY`, `FEISTEL_ROUNDS`, pairing, or `F`) | Changes all content → golden-vector test (INV-14) fails. Requires a deliberate version bump, never a silent edit. |
-| E6 | Base-29 endianness / padding | Fixed big-endian, left-pad to 80 with index-0 glyph; locked by INV-7. |
-| E7 | **Unaddressable-forward:** `line()` on a coordinate whose `pair(n,floor) ≥ ROOM_MAX` | `encodeLineIndex` throws `RangeError`. Unreachable for MVP (players walk near origin), but makes the forward map **total and honest** rather than silently overflowing the Feistel domain. Symmetric with E2 on the inverse side. |
-| E8 | `inverse` receives a string of wrong length / non-alphabet glyph | `base29Encode`/`glyphToDigit` throws `RangeError` (contract: `inverse` takes a valid `Glyph[80]`). |
+| #   | Case                                                                                              | Behaviour                                                                                                                                                                                                                         |
+| --- | ------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| E1  | Out-of-range intra field (`wall`/`shelf`/`volume`/`page`/`line`)                                  | `encodeLineIndex` throws `RangeError` (programmer bug; never user input in MVP).                                                                                                                                                  |
+| E2  | `inverse` on unaddressable content (sub-room remainder)                                           | returns `null`. Unit 06 must render as "exists in the library, at no walkable coordinate."                                                                                                                                        |
+| E3  | Accidental `number` coercion in index math                                                        | Banned by review + `@typescript-eslint`; the golden vector (INV-14) catches any `Number()` truncation instantly.                                                                                                                  |
+| E4  | HMAC input width                                                                                  | `R` serialised to fixed 25-byte big-endian (`R_BYTES`), so the PRF domain is unambiguous and stable forever.                                                                                                                      |
+| E5  | Library drift (any change to `ALPHABET`, radices, `BABEL_KEY`, `FEISTEL_ROUNDS`, pairing, or `F`) | Changes all content → golden-vector test (INV-14) fails. Requires a deliberate version bump, never a silent edit.                                                                                                                 |
+| E6  | Base-29 endianness / padding                                                                      | Fixed big-endian, left-pad to 80 with index-0 glyph; locked by INV-7.                                                                                                                                                             |
+| E7  | **Unaddressable-forward:** `line()` on a coordinate whose `pair(n,floor) ≥ ROOM_MAX`              | `encodeLineIndex` throws `RangeError`. Unreachable for MVP (players walk near origin), but makes the forward map **total and honest** rather than silently overflowing the Feistel domain. Symmetric with E2 on the inverse side. |
+| E8  | `inverse` receives a string of wrong length / non-alphabet glyph                                  | `base29Encode`/`glyphToDigit` throws `RangeError` (contract: `inverse` takes a valid `Glyph[80]`).                                                                                                                                |
 
 ---
 
@@ -387,15 +392,15 @@ format-preserving encryption must be known **independently** to both encrypt and
 decrypt. Here the would-be tweak (`ring`) is part of the plaintext being
 encrypted and is **not** recoverable from the ciphertext without first decrypting.
 
-| Approach | Behaviour | Problem |
-|---|---|---|
-| Per-ring Feistel keys (brief's seam) | Deep rooms mix differently | **Breaks `inverse()`** — ring unknown at decrypt time |
-| Permute only *within* a room (room preserved in clear) | Keeps per-ring keying possible | **Kills the "type anything → found in an unpredictable far room" magic** — nearby strings map to nearby rooms |
-| **Global fixed bijection (chosen)** | One permutation over all of `[0, M)`; `roundKey(i)` depends on `BABEL_KEY` + round only | Preserves both invertibility **and** the "found anywhere" magic |
+| Approach                                               | Behaviour                                                                               | Problem                                                                                                       |
+| ------------------------------------------------------ | --------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| Per-ring Feistel keys (brief's seam)                   | Deep rooms mix differently                                                              | **Breaks `inverse()`** — ring unknown at decrypt time                                                         |
+| Permute only _within_ a room (room preserved in clear) | Keeps per-ring keying possible                                                          | **Kills the "type anything → found in an unpredictable far room" magic** — nearby strings map to nearby rooms |
+| **Global fixed bijection (chosen)**                    | One permutation over all of `[0, M)`; `roundKey(i)` depends on `BABEL_KEY` + round only | Preserves both invertibility **and** the "found anywhere" magic                                               |
 
 **Resolution.** The cipher is a single fixed global bijection. `roundKey(i)`
 depends only on `BABEL_KEY` and the round index `i` — never on the room. The
-"depth feels different" *aesthetic* is relocated to the **render layer** (Unit 03+),
+"depth feels different" _aesthetic_ is relocated to the **render layer** (Unit 03+),
 which stands in a known room and therefore **has `ring(room)` in the clear**. Depth
 can drive colour, fog, glyph treatment, audio — none of which touch the invertible
 core. This is the honest version of the seam: the extension point is real, it just
@@ -425,23 +430,16 @@ module layout. **Node** vitest project (pure, no DOM — matches the existing
 `tests/unit/{domain,ports}/**` include). Test files import via `@/domain` (C8).
 
 **Algebra**
+
 1. Loop closure (INV-1) — includes the explicit assertions
    `reduce(['forward','back']) === ORIGIN` and `reduce(['up','forward','down','back']) === ORIGIN`.
 2. Path-independence (INV-2).
 3. Move inverses (INV-3).
 4. Hash determinism + no collision across 10⁴ sampled coords (INV-4).
 
-**Cipher**
-5. Determinism (INV-9).
-6. Forward round-trip `inverse(line(a)) === a`, `n,floor` sampled in `±10⁶`, intra fields in range (INV-10).
-6b. **Reverse round-trip** `line(inverse(g)) === g` for random `Glyph[80]` g where `inverse(g) !== null` (INV-11) — **this is the property that exercises `unpair` on astronomically large rooms**, the real search path.
-7. Pairing bijectivity over the bounded window (INV-5).
-7b. **Large-room pairing** at ring boundaries and near `ROOM_MAX` (INV-6) — direct `unpair`/`isqrt` stress at the scale real search inputs hit.
-8. Alphabet & length integrity (INV-12).
-9. Bijection tripwire: 10⁴ distinct addresses → 10⁴ distinct lines (INV-13). *Note: cannot fail unless a bug collapses distinct indices — that is its purpose.*
-10. Base-29 round-trip (INV-7).
-11. **Golden vector** (INV-14): with `BABEL_KEY` fixed, the origin line equals a committed 80-char string. Generated once (Phase 4.3), never regenerated.
-12. Feistel bijectivity + range (INV-8).
+**Cipher** 5. Determinism (INV-9). 6. Forward round-trip `inverse(line(a)) === a`, `n,floor` sampled in `±10⁶`, intra fields in range (INV-10).
+6b. **Reverse round-trip** `line(inverse(g)) === g` for random `Glyph[80]` g where `inverse(g) !== null` (INV-11) — **this is the property that exercises `unpair` on astronomically large rooms**, the real search path. 7. Pairing bijectivity over the bounded window (INV-5).
+7b. **Large-room pairing** at ring boundaries and near `ROOM_MAX` (INV-6) — direct `unpair`/`isqrt` stress at the scale real search inputs hit. 8. Alphabet & length integrity (INV-12). 9. Bijection tripwire: 10⁴ distinct addresses → 10⁴ distinct lines (INV-13). _Note: cannot fail unless a bug collapses distinct indices — that is its purpose._ 10. Base-29 round-trip (INV-7). 11. **Golden vector** (INV-14): with `BABEL_KEY` fixed, the origin line equals a committed 80-char string. Generated once (Phase 4.3), never regenerated. 12. Feistel bijectivity + range (INV-8).
 
 **Coverage gate:** `src/domain/**` ≥ 95% (v8), configured as a per-glob threshold
 in `vitest.config.ts`.
@@ -450,17 +448,17 @@ in `vitest.config.ts`.
 
 ## 9. Failure Modes & Mitigations (FMEA)
 
-| # | Failure Mode | Severity | Mitigation |
-|---|---|---|---|
-| 1 | Algorithm silently drifts (dep bump, refactor, WASM swap) → every book changes | **Critical** | Golden vector INV-14 fails CI (E5). Freeze constants (C6). |
-| 2 | `number` truncation sneaks into index math | **Critical** | `bigint`-only (C2); INV-14 tripwire; INV-13. |
-| 3 | `unpair`/`isqrt` off-by-one at a ring boundary → search maps to wrong room | **High** | INV-6 boundary tests + INV-11 reverse round-trip; exact `isqrt` correction loop (§4.5). |
-| 4 | Feistel not actually invertible (round-inverse coded wrong) | **High** | INV-8 direct test + INV-10/INV-11 round-trips. |
-| 5 | Base-29 padding/endianness inconsistency | **High** | INV-7 round-trip; fixed big-endian left-pad (E6). |
-| 6 | `line()` overflows Feistel domain on a far coordinate | Medium | E7 guard throws `RangeError` (total forward map). |
-| 7 | A framework import leaks into `src/domain/` | **High** | `boundaries/dependencies` lint + `pnpm script:verify-boundaries` (INV-15). |
-| 8 | Port `Address`/`Glyph` refinement breaks Unit 01 consumers or the boundary lint | Medium | Refine types only (interface bodies unchanged); relative import (C8); `pnpm compile` + `pnpm lint` gate. |
-| 9 | `@noble/hashes` subpath differs across `^1.8 \|\| ^2.0` | Medium | Use `@noble/hashes/sha2` + `@noble/hashes/hmac` (valid in both majors); verify import resolves in Phase 1. |
+| #   | Failure Mode                                                                    | Severity     | Mitigation                                                                                                 |
+| --- | ------------------------------------------------------------------------------- | ------------ | ---------------------------------------------------------------------------------------------------------- |
+| 1   | Algorithm silently drifts (dep bump, refactor, WASM swap) → every book changes  | **Critical** | Golden vector INV-14 fails CI (E5). Freeze constants (C6).                                                 |
+| 2   | `number` truncation sneaks into index math                                      | **Critical** | `bigint`-only (C2); INV-14 tripwire; INV-13.                                                               |
+| 3   | `unpair`/`isqrt` off-by-one at a ring boundary → search maps to wrong room      | **High**     | INV-6 boundary tests + INV-11 reverse round-trip; exact `isqrt` correction loop (§4.5).                    |
+| 4   | Feistel not actually invertible (round-inverse coded wrong)                     | **High**     | INV-8 direct test + INV-10/INV-11 round-trips.                                                             |
+| 5   | Base-29 padding/endianness inconsistency                                        | **High**     | INV-7 round-trip; fixed big-endian left-pad (E6).                                                          |
+| 6   | `line()` overflows Feistel domain on a far coordinate                           | Medium       | E7 guard throws `RangeError` (total forward map).                                                          |
+| 7   | A framework import leaks into `src/domain/`                                     | **High**     | `boundaries/dependencies` lint + `pnpm script:verify-boundaries` (INV-15).                                 |
+| 8   | Port `Address`/`Glyph` refinement breaks Unit 01 consumers or the boundary lint | Medium       | Refine types only (interface bodies unchanged); relative import (C8); `pnpm compile` + `pnpm lint` gate.   |
+| 9   | `@noble/hashes` subpath differs across `^1.8 \|\| ^2.0`                         | Medium       | Use `@noble/hashes/sha2` + `@noble/hashes/hmac` (valid in both majors); verify import resolves in Phase 1. |
 
 **Recovery / idempotency.** Every phase gate is re-runnable and side-effect-free
 (pure code + tests). A crash mid-phase is recovered by re-running the phase's
@@ -752,7 +750,7 @@ script under `scripts/` clearly marked one-off (it is covered by
 In `vitest.config.ts`, add a per-glob coverage threshold for the domain:
 `coverage.thresholds` with `'src/domain/**': { statements: 95, branches: 95, functions: 95, lines: 95 }`.
 Update `docs/doctrine/01-frozen-contracts.md` to mark `src/domain/index.ts` as
-**populated-and-frozen** (§4.10 surface). *(No ADR — per project decision.)*
+**populated-and-frozen** (§4.10 surface). _(No ADR — per project decision.)_
 
 ##### Verify
 
@@ -770,6 +768,6 @@ Update `docs/doctrine/01-frozen-contracts.md` to mark `src/domain/index.ts` as
 
 ## 12. Change Log
 
-| Version | Date | Changes |
-|---------|------|---------|
-| 1.0.0 | 2026-07-03 | Initial spec, rewritten from first principles off the inspiration brief. Resolves: gate/port/script staleness (aligned to actual `package.json` + `src/ports/` + tsx); **removes the impossible depth-entropy Feistel seam** and relocates depth aesthetics to the render layer (§7.1); adds reverse round-trip (INV-11) and large-room pairing (INV-6) properties; adds forward `ROOM_MAX` guard (E7); reframes injectivity as a bijection tripwire (INV-13); pins `@noble/hashes` `sha2`/`hmac` subpaths. |
+| Version | Date       | Changes                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| ------- | ---------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1.0.0   | 2026-07-03 | Initial spec, rewritten from first principles off the inspiration brief. Resolves: gate/port/script staleness (aligned to actual `package.json` + `src/ports/` + tsx); **removes the impossible depth-entropy Feistel seam** and relocates depth aesthetics to the render layer (§7.1); adds reverse round-trip (INV-11) and large-room pairing (INV-6) properties; adds forward `ROOM_MAX` guard (E7); reframes injectivity as a bijection tripwire (INV-13); pins `@noble/hashes` `sha2`/`hmac` subpaths. |

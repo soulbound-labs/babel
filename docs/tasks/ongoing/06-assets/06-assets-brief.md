@@ -6,7 +6,7 @@
 
 ## Context
 
-Babel is a deterministic Library of Babel as a flat-screen 3D art piece. By the time this unit runs, the mechanics are proven: you can walk the corridor and climb the shaft (Unit 04), pull a book and watch its glyphs resolve out of the dark (Unit 05), and the chills-gate has already been passed on *placeholder geometry and mood-complete-but-basic* atmosphere. This unit is where the world stops being a convincing sketch and becomes lush — the beauty layer that turns "yes, the magic is real" into "and it's beautiful."
+Babel is a deterministic Library of Babel as a flat-screen 3D art piece. By the time this unit runs, the mechanics are proven: you can walk the corridor and climb the shaft (Unit 04), pull a book and watch its glyphs resolve out of the dark (Unit 05), and the chills-gate has already been passed on _placeholder geometry and mood-complete-but-basic_ atmosphere. This unit is where the world stops being a convincing sketch and becomes lush — the beauty layer that turns "yes, the magic is real" into "and it's beautiful."
 
 The sequencing is deliberate and load-bearing: **beauty comes after the gate, not before.** Polishing assets before the mechanics were proven would have been wasted work on a piece that might not have earned it. Now that it's earned, this unit invests. And because it's a pure rendering layer, it's the safest possible thing to run in parallel with multiplayer (Unit 07) — the two touch disjoint subsystems (rendering vs. netcode) with near-zero merge surface.
 
@@ -28,7 +28,7 @@ Make the world **lush**: real PBR assets, upgraded volumetric fog, refined two-b
 ## Decisions already locked (do not re-litigate)
 
 - **Rendering-only.** This unit consumes the Unit 03 room module and the mirror/fog hooks; it touches **no** coordinate, cipher, or Convex logic. Enforced by the Unit 01 boundary lint and stated as a hard constraint.
-- **Beauty comes after the chills-gate** — this unit runs *after* Units 04 and 05 have proven the mechanics, not before.
+- **Beauty comes after the chills-gate** — this unit runs _after_ Units 04 and 05 have proven the mechanics, not before.
 - **Fog is a shader, not physics.** Volumetric fog is a rendering effect; no simulation.
 - **Lean into darkness.** The two dim bulbs remain the entire lighting model. Polish deepens the gloom's beauty; it does not flood the room with light.
 - **Mirror = real-time render-target reflection**, restored into the placeholder hook Unit 03 left in the vestibule.
@@ -38,7 +38,7 @@ Make the world **lush**: real PBR assets, upgraded volumetric fog, refined two-b
 
 ## Explicitly out of scope
 
-Any core / coordinate / cipher / Convex logic (hard boundary). Illuminated-manuscript *text* styling — ornamented drop caps, gold-leaf glyphs on the page — is a possible later pass; this unit does the *world and book object* beauty, and should confirm with the architect whether on-page glyph ornamentation is in or explicitly deferred (see open questions). Mechanics changes of any kind (movement, streaming, page-turn behavior, selection). Multiplayer (Unit 07). Search (Unit 08). New geometry that changes room proportions.
+Any core / coordinate / cipher / Convex logic (hard boundary). Illuminated-manuscript _text_ styling — ornamented drop caps, gold-leaf glyphs on the page — is a possible later pass; this unit does the _world and book object_ beauty, and should confirm with the architect whether on-page glyph ornamentation is in or explicitly deferred (see open questions). Mechanics changes of any kind (movement, streaming, page-turn behavior, selection). Multiplayer (Unit 07). Search (Unit 08). New geometry that changes room proportions.
 
 ## References (read before writing the spec)
 
@@ -55,9 +55,9 @@ Any core / coordinate / cipher / Convex logic (hard boundary). Illuminated-manus
 - **Asset licensing posture**: CC0-only (cleanest for a commercial art piece), or is tracked CC-BY acceptable? This constrains sourcing and needs an answer before assets are pulled.
 - **Aesthetic direction**: earlier we noted Borges reads closer to Piranesi/Escher austerity than cathedral-gothic, and you were open to an Escher aesthetic. Lock the visual target (austere endless stone vs. gothic ornament) so the asset pass has a coherent direction rather than a kitbash.
 - **Performance budget after reskin**: PBR + volumetric fog + a render-target mirror + bloom/shadows is a large jump from placeholder materials. What's the frame-rate floor and target device, and what's the LOD/quality strategy so the 640-book instanced room + streaming neighbors stays within budget? The mirror render-target in particular roughly doubles draw cost for whatever it reflects — is it always-on, or only active in the vestibule?
-- **On-page glyph ornamentation**: is illuminated-manuscript *text* styling (ornamented capitals, gold leaf on the glyphs) in this unit, a separate later pass, or out entirely? Unit 05 shipped plain glyphs deliberately; confirm whether this unit touches the page text or only the book *object* and the world.
+- **On-page glyph ornamentation**: is illuminated-manuscript _text_ styling (ornamented capitals, gold leaf on the glyphs) in this unit, a separate later pass, or out entirely? Unit 05 shipped plain glyphs deliberately; confirm whether this unit touches the page text or only the book _object_ and the world.
 - **Mirror fidelity vs. cost**: full real-time reflection every frame, or a cheaper approximation (lower-res render target, reflection only when the player faces it)? The iconic value is high but so is the cost.
-- **Fog and the shaft agreement**: the volumetric fog must hide the shaft's finite bottom *and* be consistent with Unit 04's streaming — how deep does the shaft illusion render before fog fully occludes, and does it match the floors Unit 04 actually streams?
+- **Fog and the shaft agreement**: the volumetric fog must hide the shaft's finite bottom _and_ be consistent with Unit 04's streaming — how deep does the shaft illusion render before fog fully occludes, and does it match the floors Unit 04 actually streams?
 - **Reversibility check**: since this is a reskin, is there value in keeping Unit 03's placeholder materials behind a flag (a "greybox mode") so regressions in the beauty pass can be bisected against the proven-magic baseline?
 
 ## Deliverable
@@ -68,6 +68,6 @@ The lush world: real PBR stone/wood/brass, volumetric fog catching the bulb-ligh
 
 Two flags before this goes to the architect.
 
-**Lock the aesthetic direction before this unit starts, not inside it.** "Make it lush" without a settled visual target (austere Piranesi/Escher stone vs. gothic-cathedral ornament) is the one place this otherwise-safe unit can go sideways — you'd get a beautiful-but-incoherent kitbash, and reskin work is expensive to redo. This is the decision I'd most want *you* to make explicitly rather than delegate to the architect; the brief flags it as an open question, but it's really a you-question. Given the piece's soul, my lean is austere Escher/Piranesi over gothic — endless identical stone reads more Borges than a cathedral does — but it's yours to call.
+**Lock the aesthetic direction before this unit starts, not inside it.** "Make it lush" without a settled visual target (austere Piranesi/Escher stone vs. gothic-cathedral ornament) is the one place this otherwise-safe unit can go sideways — you'd get a beautiful-but-incoherent kitbash, and reskin work is expensive to redo. This is the decision I'd most want _you_ to make explicitly rather than delegate to the architect; the brief flags it as an open question, but it's really a you-question. Given the piece's soul, my lean is austere Escher/Piranesi over gothic — endless identical stone reads more Borges than a cathedral does — but it's yours to call.
 
-**The "greybox mode" open question is worth taking seriously as cheap insurance.** Because this unit reskins a *proven* baseline, keeping Unit 03's placeholder materials behind a flag means any regression in the beauty pass can be bisected against the exact build that passed the chills-gate. It's a small amount of work that protects the most valuable thing the project has produced — the confirmed magic. I'd default it to *in* unless you want the unit leaner. Want Unit 07 (multiplayer) next?
+**The "greybox mode" open question is worth taking seriously as cheap insurance.** Because this unit reskins a _proven_ baseline, keeping Unit 03's placeholder materials behind a flag means any regression in the beauty pass can be bisected against the exact build that passed the chills-gate. It's a small amount of work that protects the most valuable thing the project has produced — the confirmed magic. I'd default it to _in_ unless you want the unit leaner. Want Unit 07 (multiplayer) next?

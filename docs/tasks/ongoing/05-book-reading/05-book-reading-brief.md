@@ -8,9 +8,9 @@
 
 Babel is a deterministic Library of Babel as a flat-screen 3D art piece. Unit 03 gave us one dark, fogged hexagon you can stand in. This unit is the payoff: you reach out, take a book off the shelf, open it, and watch its pages fill — 80 characters a line, 40 lines a page — with the authentic ciphered noise the core generates. You don't read it. You behold it. That act, in the dim light, is the whole reason the piece exists.
 
-This is the **chills-gate**. Of all eight units, this is the one whose deliverable answers the only question that matters: *does the magic land?* If pulling a book and watching glyphs resolve out of the dark doesn't raise the hair on your neck, no amount of infinity, staircase, or asset polish will save the project — and you'll have learned that cheaply, four units in, before building the rest. If it does land, everything after is additive.
+This is the **chills-gate**. Of all eight units, this is the one whose deliverable answers the only question that matters: _does the magic land?_ If pulling a book and watching glyphs resolve out of the dark doesn't raise the hair on your neck, no amount of infinity, staircase, or asset polish will save the project — and you'll have learned that cheaply, four units in, before building the rest. If it does land, everything after is additive.
 
-Because the beauty pass (Unit 06) doesn't exist yet, this gate is judged on Unit 03's mood-complete atmosphere plus plain vellum and plain glyphs. The brief must hold that bar honestly: the *staging, motion, and streaming* have to carry the moment, not textures.
+Because the beauty pass (Unit 06) doesn't exist yet, this gate is judged on Unit 03's mood-complete atmosphere plus plain vellum and plain glyphs. The brief must hold that bar honestly: the _staging, motion, and streaming_ have to carry the moment, not textures.
 
 Unit 05 runs parallel to Unit 04 (staircase) on a separate branch; they share only the frozen core and the Unit 03 room, so they can't collide. Whoever needs the earliest signal takes this one.
 
@@ -30,7 +30,7 @@ Deliver the full **book hero moment**: click a book on the shelf → it comes to
 
 ## Decisions already locked (do not re-litigate)
 
-- **Behold, don't read**: content is authentic ciphered noise from the deterministic core. No LLM, no readable prose, no illumination. The beauty is the *rendering* of the noise, not its meaning.
+- **Behold, don't read**: content is authentic ciphered noise from the deterministic core. No LLM, no readable prose, no illumination. The beauty is the _rendering_ of the noise, not its meaning.
 - **No physics**: the approach animation and the page-turn are **hard-coded deterministic animations** (rigged mesh + shader bend / baked motion). Cloth/soft-body simulation is explicitly rejected.
 - **Streaming, not instant**: glyphs resolve onto the page over time (typed-in feel), not all-at-once. The streaming is a rendering/animation effect over locally-computed content — not a network stream.
 - **SDF glyph atlas** for the text — shaded, lit type on vellum, never flat ASCII.
@@ -69,6 +69,6 @@ The full book hero moment on real ciphered content: click a book, it comes to yo
 
 Two flags before this goes to the architect.
 
-**The two subjective gates (Unit 03 "mood-complete" and this one) should share one acceptance ritual, and you should decide now who holds the judgment.** I've now pushed "define a checkable ritual" to the architect in both briefs, but they're really the same question asked twice, and the honest answer is that *you* are the instrument — the gate is "does Rei get chills." The cleanest version: you commit a reference capture from an early build as the target, and the reviewer matches against it. Worth deciding whether that judgment is yours alone (it probably is, for an art piece) so the architect stops trying to mechanize something that shouldn't be.
+**The two subjective gates (Unit 03 "mood-complete" and this one) should share one acceptance ritual, and you should decide now who holds the judgment.** I've now pushed "define a checkable ritual" to the architect in both briefs, but they're really the same question asked twice, and the honest answer is that _you_ are the instrument — the gate is "does Rei get chills." The cleanest version: you commit a reference capture from an early build as the target, and the reviewer matches against it. Worth deciding whether that judgment is yours alone (it probably is, for an art piece) so the architect stops trying to mechanize something that shouldn't be.
 
 **The "reading view vs. in-world" open question is the one real coupling between this unit and Unit 04**, and they're being built in parallel. If Unit 05 opens the book by transitioning to a focused view and Unit 04 assumes continuous in-world camera control, the two camera models can quietly conflict at merge. My default to avoid that: the book is read **in-place in the world** (camera eases to the book, movement is suspended, the room stays visible behind) — no separate view mode, so Unit 04's locomotion and this unit's reading share one camera and compose cleanly. If you'd rather a dedicated reading view, say so and I'll write the camera-ownership seam explicitly into both briefs so the parallel branches don't collide.
