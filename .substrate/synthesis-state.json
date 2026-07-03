@@ -7,12 +7,20 @@
     "context": "full",
     "narrative-commit": "4861b89f0fcc1a25c8ff58ca804bade1012c7f84"
   },
+  "09-layer-consolidation": {
+    "status": "complete",
+    "started": "2026-07-03T21:00:34Z",
+    "completed": "2026-07-03T21:00:34Z",
+    "completed-steps": [4, 5, 6, 7, 8, 9, 10],
+    "context": "full",
+    "narrative-commit": "d072c74"
+  },
   "03-world-render": {
     "status": "complete",
     "started": "2026-07-03T22:35:00Z",
+    "completed": "2026-07-03T22:50:00Z",
     "completed-steps": [4, 5, 6, 7, 8, 9, 10],
     "context": "full",
-    "completed": "2026-07-03T22:50:00Z",
     "narrative-commit": "78acf0e1008982042757d387677269bf27103a97"
   }
 }
