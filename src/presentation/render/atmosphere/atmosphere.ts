@@ -13,6 +13,8 @@ import type { Scene, WebGLRenderer } from 'three';
 export type AtmosphereProfile = {
   /** Near-black background — every sightline must terminate in fog or geometry. */
   background: string;
+  /** Fog tint — slightly lighter than the background so the murk itself reads. */
+  fogColor: string;
   /** FogExp2 density. Aggressive by design: darkness and fog are the budget's best friends (C3). */
   fogDensity: number;
   /** ACES exposure — tuned once here, never per-material. */
@@ -24,9 +26,10 @@ export type AtmosphereProfile = {
 /** Mood-gate starting point (§7.1). Tune ONLY here + Bulbs.tsx during Phase 6. */
 export const DEFAULT_ATMOSPHERE: AtmosphereProfile = {
   background: '#050507',
-  fogDensity: 0.18,
-  toneMappingExposure: 1.0,
-  ambientIntensity: 0.02,
+  fogColor: '#0b0a10',
+  fogDensity: 0.16,
+  toneMappingExposure: 1.3,
+  ambientIntensity: 0.05,
 };
 
 /** Renderer subset we touch — keeps the seam testable and the swap narrow. */
@@ -38,7 +41,7 @@ export function applyAtmosphere(
   profile: AtmosphereProfile = DEFAULT_ATMOSPHERE,
 ): void {
   scene.background = new Color(profile.background);
-  scene.fog = new FogExp2(profile.background, profile.fogDensity);
+  scene.fog = new FogExp2(profile.fogColor, profile.fogDensity);
   renderer.toneMapping = ACESFilmicToneMapping;
   renderer.toneMappingExposure = profile.toneMappingExposure;
 }

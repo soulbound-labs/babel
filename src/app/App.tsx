@@ -21,20 +21,23 @@ type AudioStack = { ctx: AudioContext; bus: AudioBus } | null;
 
 export function App() {
   // jsdom/CI has no Web Audio (E5); the scene never blocks on audio (E2).
-  const [audio] = useState<AudioStack>(() => {
-    if (typeof AudioContext === 'undefined') return null;
-    const ctx = new AudioContext();
-    return { ctx, bus: createAudioBus(ctx) };
-  });
+  // The whole stack lives inside the effect: StrictMode's dev double-mount
+  // disposes the first stack (closing its AudioContext) and builds a fresh
+  // one, so the surviving bus is always live.
+  const [audio, setAudio] = useState<AudioStack>(null);
 
   useEffect(() => {
-    if (!audio) return;
-    const ambient = startAmbient(audio.bus, audio.ctx);
+    if (typeof AudioContext === 'undefined') return;
+    const ctx = new AudioContext();
+    const bus = createAudioBus(ctx);
+    const ambient = startAmbient(bus, ctx);
+    setAudio({ ctx, bus });
     return () => {
       ambient.dispose();
-      audio.bus.dispose();
+      bus.dispose();
+      setAudio(null);
     };
-  }, [audio]);
+  }, []);
 
   return (
     <PresenceContext.Provider value={presencePort}>

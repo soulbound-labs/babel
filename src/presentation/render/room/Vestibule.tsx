@@ -97,8 +97,10 @@ export function Vestibule() {
     <group>
       <mesh geometry={shell} material={stoneMaterial} />
       <mesh geometry={closets} material={voidMaterial} />
+      {/* Right flank, past the closet doorway (which ends ~1.2 m in) so the
+          glass reads against stone, not against the closet's black recess. */}
       <MirrorSurface
-        position={[HALF_W - 0.02, MIRROR_HEIGHT / 2 + 0.3, -(HEX_APOTHEM + 0.9)]}
+        position={[HALF_W - 0.02, MIRROR_HEIGHT / 2 + 0.3, -(HEX_APOTHEM + 1.8)]}
         rotationY={-Math.PI / 2}
       />
       <group position={[0, 0, STAIR_CENTER_Z]}>

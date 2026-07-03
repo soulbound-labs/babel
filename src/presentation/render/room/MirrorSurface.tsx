@@ -19,9 +19,11 @@ export function MirrorSurface({ position, rotationY = 0, reflection }: MirrorSur
     <mesh position={position} rotation={[0, rotationY, 0]}>
       <planeGeometry args={[MIRROR_WIDTH, MIRROR_HEIGHT]} />
       <meshStandardMaterial
-        color="#101014"
-        roughness={0.08}
-        metalness={0.9}
+        color="#2b2d38"
+        roughness={0.05}
+        metalness={0.55}
+        emissive="#12141c"
+        emissiveIntensity={0.6}
         map={reflection ?? null}
       />
     </mesh>
