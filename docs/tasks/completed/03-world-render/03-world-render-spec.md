@@ -992,3 +992,42 @@ cp docs/tasks/ongoing/03-world-render/doctrine-amendments.md \
 | ------- | ---------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | 1.0.1   | 2026-07-03 | Appended mandatory Phase 7: Doctrine Review (per `spec-template.md`), omitted from 1.0.0.                                                                                                                                                                                                                                                                                                                                                                                                                                              |
 | 1.0.0   | 2026-07-03 | Initial spec from the brief + Socratic session with Rei. Locks: mood-gate ritual (captures + checklist, Rei judges); desktop mid-iGPU 60 fps floor; spawn framing; single 640-instance book mesh + frozen slot mapping; handle-based N-emitter AudioBus; `PlayerState` = coordinate + local pose; staircase shape-here/walkable-in-04; analytic collision (no physics dep); click-to-enter overlay; in-place reading camera seam; faithful-cramped canonical dimensions. Fixes stale doctrine paths and the ports "Unit 05·B" comment. |
+
+---
+
+### Post-execution notes
+
+Deviations between this spec and what shipped (Phase-6 mood pass with Rei,
+2026-07-03; commits `b5f65b7`, `a616595`):
+
+1. **Third bulb (departs from §4.8 "two bulbs are the whole story").** The
+   two-bulb model left the vestibule, mirror, and staircase unreadable. Rei
+   (gate owner) directed a third bulb in the vestibule hallway, recorded as an
+   explicit deviation in `docs/mood/unit-03/checklist.md`. `BULB_POSITIONS`
+   now has three entries; the ambient module gives each a positional hum
+   automatically.
+2. **Mirror relocated + material brightened (vs §4.8 "dark, glossy
+   placeholder").** As specced, the mirror rendered invisible: fully-metallic
+   near-black with no environment map, placed 1 cm in front of the right
+   closet's void recess. Moved ~1.8 m down the right flank against lit stone;
+   material now lighter with a faint emissive sheen. The `reflection` prop
+   seam is unchanged.
+3. **`AtmosphereProfile` gained a `fogColor` field (vs §4.8 fog = background
+   color).** Fog tinted to the background read as darkness, not murk; the
+   profile now separates a slightly-lighter `fogColor`. Seam surface changed
+   pre-freeze; Unit 06 consumes the current shape in
+   `src/presentation/render/atmosphere/atmosphere.ts`.
+4. **Tuned atmosphere values** (Phase-6 knobs, as the spec intended): fog
+   density 0.18 → 0.16, exposure 1.0 → 1.3, ambient 0.02 → 0.05, bulb
+   intensity 1.6 → 3.2, light distance 5 → 7.
+5. **Audio lifecycle fix beyond spec.** React StrictMode's dev double-mount
+   disposed the app-lifetime `AudioContext` (bus disposal closes it), leaving
+   dev permanently silent. The whole audio stack now lives inside one
+   `useEffect` in `src/app/App.tsx`. Cookbook entry in
+   `docs/doctrine/audio-doctrine.md` §4.
+6. **Perf floor measured on Apple M3 Pro, not the M1-class reference device**
+   (119–121 fps, ≤ 14 draw calls, headless captures). Parked question filed to
+   re-verify on a genuine mid-iGPU machine before Unit 06's gate.
+7. **Phase 7 fulfilled by writing doctrines directly** (`render`, `audio`,
+   `mood-gate` — commit `b5f65b7`) instead of a `doctrine-amendments.md`; the
+   missing-coverage finding became the doctrines themselves.
