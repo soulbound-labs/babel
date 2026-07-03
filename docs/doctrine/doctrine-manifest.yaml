@@ -79,3 +79,41 @@ doctrines:
         codec,
       ]
     layer-hint: domain
+
+  - id: render
+    path: docs/doctrine/render-doctrine.md
+    pointers: [AGENTS.md]
+    summary: The presentation/render layer — R3F+three Lane A, the frozen seams (dimensions, book-slot mapping, camera suspend/resume, atmosphere/mirror hooks), deterministic presentation, the draw-call/DPR perf budget, and analytic collision.
+    triggers:
+      [
+        render,
+        scene,
+        three,
+        r3f,
+        fiber,
+        mesh,
+        instancing,
+        geometry,
+        camera,
+        locomotion,
+        collision,
+        fog,
+        lighting,
+        material,
+        draw call,
+      ]
+    layer-hint: frontend
+
+  - id: audio
+    path: docs/doctrine/audio-doctrine.md
+    pointers: [AGENTS.md]
+    summary: The N-emitter AudioBus — frozen handle-based API, narrow BusContext test seam, procedural ambient (hush + bulb hums), entry-gesture resume, and the Web Audio lifecycle gotchas (StrictMode double-mount silence).
+    triggers: [audio, sound, emitter, ambient, hum, listener, web audio, positional, gain]
+    layer-hint: frontend
+
+  - id: mood-gate
+    path: docs/doctrine/mood-gate-doctrine.md
+    pointers: [AGENTS.md]
+    summary: Pinning subjective quality — deterministic poses + committed reference captures + objective checklist floor, the human as instrument, and the re-render-and-compare regression protocol for anything touching light/fog/materials.
+    triggers: [mood, chills, atmosphere, capture, checklist, pose, acceptance, gate, tuning]
+    layer-hint: cross-cutting

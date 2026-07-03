@@ -40,6 +40,15 @@ Every change is bound to the doctrines registered in `docs/doctrine/doctrine-man
 - `docs/doctrine/content-doctrine.md` — the deterministic library cipher: the `LineAddress→Glyph[80]`
   bijection over 29⁸⁰, the balanced Feistel (`M=H²`), the `@noble/hashes` boundary carve-out, the
   _impossible_ depth-entropy seam, and the frozen golden vector. Read before touching `src/domain/content/**`.
+- `docs/doctrine/render-doctrine.md` — the presentation/render layer: R3F+three Lane A, the frozen
+  seams (dimensions, book-slot mapping, camera suspend/resume, atmosphere/mirror hooks), deterministic
+  presentation, the perf budget, analytic collision. Read before touching `src/presentation/render/**`.
+- `docs/doctrine/audio-doctrine.md` — the N-emitter `AudioBus`: frozen handle-based API, the narrow
+  `BusContext` test seam, procedural ambient, entry-gesture resume, and the Web Audio lifecycle
+  gotchas. Read before touching `src/presentation/audio/**` or debugging silence.
+- `docs/doctrine/mood-gate-doctrine.md` — pinning subjective quality: deterministic poses + committed
+  reference captures + objective checklist floor, the human as instrument, and the re-render-and-compare
+  regression protocol. Read before changing anything that touches light, fog, or materials.
 
 Add your own stack/domain doctrines with `/substrate:add-doctrine`; each self-registers in the manifest.
 

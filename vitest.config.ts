@@ -4,8 +4,8 @@ import { defineConfig } from 'vitest/config';
 
 /**
  * Unit-only test harness (C5). Two projects:
- *   - `node`  : pure domain/ports specs — fast, no DOM.
- *   - `jsdom` : app/render smoke specs — needs a DOM.
+ *   - `node`  : pure domain/ports/presentation-logic specs (.ts) — fast, no DOM.
+ *   - `jsdom` : app/presentation component specs (.tsx) — needs a DOM.
  * `tests/unit/` mirrors `src/`. Coverage is configured (report-only); thresholds
  * arrive with Unit 02's real logic. integration/ and e2e/ are post-MVP.
  */
@@ -20,6 +20,7 @@ export default defineConfig({
           include: [
             'tests/unit/*.{test,spec}.ts',
             'tests/unit/{domain,ports}/**/*.{test,spec}.{ts,tsx}',
+            'tests/unit/presentation/**/*.{test,spec}.ts',
           ],
         },
       },
@@ -28,7 +29,7 @@ export default defineConfig({
         test: {
           name: 'jsdom',
           environment: 'jsdom',
-          include: ['tests/unit/{app,render}/**/*.{test,spec}.{ts,tsx}'],
+          include: ['tests/unit/{app,presentation}/**/*.{test,spec}.tsx'],
         },
       },
     ],
