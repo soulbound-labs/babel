@@ -4,30 +4,20 @@
  * AND runs `onEnter` (the audio-context resume, Phase 5), then the curtain
  * fades out over ~1.5 s.
  *
- * Pointer-lock loss (`Esc`, alt-tab — E1) is the app's pause signal, but it
- * doubles as the book-close signal: `Esc` is the browser's own lock exit and
- * its keydown isn't reliably delivered while locked, so we act on the LOSS.
- * While a book is open (`readingRef`) a loss shelves the book (`closeBookRef`)
- * with no pause splash — the world stays up and the NEXT CLICK re-locks.
- * (Re-locking cannot happen automatically: a pointerlockchange fired by the
- * browser's Esc exit carries no user activation, and Chrome adds a ~1.25 s
- * cooldown after Esc — any requestPointerLock from that handler is rejected.)
- * While NOT reading, a loss brings back the minimal "Click to Continue" pause
- * splash. The click-to-relock listener below is also the safety net for ANY
- * hidden-curtain unlocked state (e.g. a Continue click denied inside the
- * cooldown). WebGL context loss (E3) also brings the curtain back. Nothing
- * here crashes the scene.
+ * Pointer-lock loss (`Esc`, alt-tab — E1) is the app's pause signal — reading
+ * or walking, it brings back the minimal "Click to Continue" splash (an open
+ * book simply stays open underneath and reading resumes on re-entry; Q is the
+ * reader's close key, which never touches the lock). WebGL context loss (E3)
+ * also brings the curtain back. The click-to-relock listener below is the
+ * safety net for a hidden-curtain unlocked state: a Continue click landing
+ * inside Chrome's ~1.25 s post-Esc cooldown is denied while the curtain fades
+ * anyway. Nothing here crashes the scene.
  */
 import { useCallback, useEffect, useState } from 'react';
-import type { MutableRefObject } from 'react';
 
 export type EntryOverlayProps = {
   /** Runs on the entry click — the same gesture that requests pointer lock (E2). */
   onEnter?: () => Promise<void>;
-  /** True while a book is open — a lock-loss then shelves the book instead of pausing. */
-  readingRef?: MutableRefObject<boolean>;
-  /** The reader's close handle — invoked to return the book to the shelf on lock-loss. */
-  closeBookRef?: MutableRefObject<(() => void) | null>;
 };
 
 type Phase = 'initial' | 'fading' | 'hidden' | 'returned';
@@ -44,7 +34,7 @@ function requestPointerLockSafely(): void {
   }
 }
 
-export function EntryOverlay({ onEnter, readingRef, closeBookRef }: EntryOverlayProps) {
+export function EntryOverlay({ onEnter }: EntryOverlayProps) {
   const [phase, setPhase] = useState<Phase>('initial');
 
   const enter = useCallback(() => {
@@ -55,18 +45,10 @@ export function EntryOverlay({ onEnter, readingRef, closeBookRef }: EntryOverlay
     setPhase('fading');
   }, [onEnter]);
 
-  // Lock loss (E1) and WebGL context loss/restore (E3) bring back the curtain —
-  // unless a book is open, in which case the loss just shelves the book.
+  // Lock loss (E1) and WebGL context loss/restore (E3) bring back the curtain.
   useEffect(() => {
     const onLockChange = () => {
       if (document.pointerLockElement !== null) return;
-      // Reading + Esc: shelve the book, keep the world up (no splash). The lock
-      // CANNOT be re-acquired here (no user activation — see the header); the
-      // click-to-relock effect below turns the next click into the re-lock.
-      if (readingRef?.current) {
-        closeBookRef?.current?.();
-        return;
-      }
       setPhase((p) => (p === 'initial' ? p : 'returned'));
     };
     document.addEventListener('pointerlockchange', onLockChange);
@@ -81,7 +63,7 @@ export function EntryOverlay({ onEnter, readingRef, closeBookRef }: EntryOverlay
       document.removeEventListener('pointerlockchange', onLockChange);
       canvas?.removeEventListener('webglcontextlost', onContextLost);
     };
-  }, [readingRef, closeBookRef]);
+  }, []);
 
   useEffect(() => {
     if (phase !== 'fading') return;
@@ -89,12 +71,12 @@ export function EntryOverlay({ onEnter, readingRef, closeBookRef }: EntryOverlay
     return () => clearTimeout(t);
   }, [phase]);
 
-  // Click-to-relock: whenever the curtain is hidden but the pointer is free
-  // (a book was just shelved with Esc, or a re-lock was denied inside Chrome's
-  // post-Esc cooldown), any click re-requests the lock — a real user gesture,
-  // so it is granted. It cannot accidentally open a book: the pick handler
-  // requires the lock to ALREADY be held at pointerdown, and this lock lands
-  // asynchronously after the click.
+  // Click-to-relock safety net: if the curtain is hidden but the pointer is
+  // free (a Continue click denied inside Chrome's post-Esc cooldown fades the
+  // curtain without the lock), any click re-requests the lock — a real user
+  // gesture, so it is granted. It cannot accidentally open a book: the pick
+  // handler requires the lock to ALREADY be held at pointerdown, and this
+  // lock lands asynchronously after the click.
   useEffect(() => {
     if (phase !== 'hidden') return;
     const onPointerDown = () => {

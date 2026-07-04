@@ -9,7 +9,7 @@
  */
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { useCallback, useMemo, useRef } from 'react';
-import type { MutableRefObject, Ref, RefObject } from 'react';
+import type { Ref, RefObject } from 'react';
 import { Vector3 } from 'three';
 
 import { ORIGIN } from '../../domain/entities';
@@ -55,20 +55,9 @@ export type WorldSceneProps = {
   audioCtx?: BaseAudioContext;
   /** Footsteps (§4.3) — the controller fires `step(surface)` on the stride cadence. */
   footsteps?: FootstepsHandle;
-  /** True while a book is open — lets the overlay close it (not pause) on Esc lock-loss. */
-  readingRef?: MutableRefObject<boolean>;
-  /** The reader's close handle — the overlay calls it to shelve the book on lock-loss. */
-  closeBookRef?: MutableRefObject<(() => void) | null>;
 };
 
-export function WorldScene({
-  locomotionRef,
-  audioBus,
-  audioCtx,
-  footsteps,
-  readingRef,
-  closeBookRef,
-}: WorldSceneProps = {}) {
+export function WorldScene({ locomotionRef, audioBus, audioCtx, footsteps }: WorldSceneProps = {}) {
   // Debug hooks (§7.1, E7): invalid ?pose is ignored — normal spawn.
   const search = window.location.search;
   const pose = parsePoseParam(search) ?? SPAWN_POSE;
@@ -120,8 +109,6 @@ export function WorldScene({
         audioBus={audioBus}
         audioCtx={audioCtx}
         pinned={pose.book}
-        readingRef={readingRef}
-        closeBookRef={closeBookRef}
       />
     </Canvas>
   );

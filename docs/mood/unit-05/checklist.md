@@ -13,7 +13,9 @@ reading glow — `READ_GLOW_COLOR #ffc78f`, `READ_GLOW_INTENSITY 1.4`,
 module `reading/reading-light.ts`). Tune live at the gate; record finals here.
 
 **Controls (reviewable default):** look at a book + left-click = pull & open ·
-left-click = next page · right-click = previous page · E = close and walk on.
+left-click = next page · right-click = previous page · Q = close and walk on
+(the lock never drops — instant control). Esc = pause splash, reading or not;
+an open book stays open and reading resumes on Click to Continue.
 
 ---
 

@@ -14,11 +14,12 @@
  * content comes from `openPage`, memoized, computed only on open/settle.
  *
  * Input while reading: left-click = next page, right-click = previous page,
- * Esc = close and walk on. Esc is the browser's own pointer-lock exit (its
- * keydown isn't reliably delivered while locked), so the close is driven off
- * the resulting pointer-lock LOSS in the overlay, not a keydown here: the
- * overlay reads `readingRef` and calls `closeBookRef` on lock-loss, then shows
- * no splash (an Esc while NOT reading pauses to the splash instead).
+ * Q = close and walk on — a plain keydown, so the pointer lock never drops
+ * and navigation resumes instantly. Esc is NOT a close key: it is the
+ * browser's own pointer-lock exit (unpreventable, no reliable keydown, and
+ * the lock can't be programmatically re-acquired afterwards), so Esc simply
+ * pauses to the overlay's splash like anywhere else — the book stays open
+ * and reading continues after "Click to Continue".
  */
 import { Text } from '@react-three/drei';
 import { useFrame, useThree } from '@react-three/fiber';
@@ -38,7 +39,7 @@ import {
   Vector3,
 } from 'three';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
-import type { MutableRefObject, RefObject } from 'react';
+import type { RefObject } from 'react';
 
 import {
   BOOK_PAGES,
@@ -149,24 +150,9 @@ export type BookReaderProps = {
    * never wall-clock. Interaction is disabled while pinned.
    */
   pinned?: { address: LineAddress; phase: ReadingPhase };
-  /**
-   * Published to the overlay so an Esc-driven pointer-lock loss knows whether a
-   * book is open: true ⇒ the loss closes the book (no pause splash); false ⇒
-   * the loss raises the splash. Kept in sync with the open/closed transition.
-   */
-  readingRef?: MutableRefObject<boolean>;
-  /** Published close handle so the overlay can return the book to the shelf on lock-loss. */
-  closeBookRef?: MutableRefObject<(() => void) | null>;
 };
 
-export function BookReader({
-  handleRef,
-  audioBus,
-  audioCtx,
-  pinned,
-  readingRef,
-  closeBookRef,
-}: BookReaderProps) {
+export function BookReader({ handleRef, audioBus, audioCtx, pinned }: BookReaderProps) {
   const camera = useThree((s) => s.camera);
 
   const machineRef = useRef<ReaderState>(CLOSED_READER);
@@ -336,21 +322,6 @@ export function BookReader({
     setDisplay(null);
   }, [handleRef, restoreShelfInstance]);
 
-  // Publish reading status + the close handle so the overlay can drive close
-  // off the Esc pointer-lock loss (whose keydown isn't reliable while locked).
-  const reading = display !== null;
-  useEffect(() => {
-    if (!readingRef) return;
-    readingRef.current = reading;
-  }, [reading, readingRef]);
-  useEffect(() => {
-    if (!closeBookRef) return;
-    closeBookRef.current = closeReader;
-    return () => {
-      closeBookRef.current = null;
-    };
-  }, [closeBookRef, closeReader]);
-
   // Live precisely when a click would open a book: not pinned, reader closed.
   const interactionEnabled = useCallback(
     () => pinned === undefined && machineRef.current.status === 'closed',
@@ -410,13 +381,21 @@ export function BookReader({
       }
     };
     const onContextMenu = (event: Event) => event.preventDefault();
+    // Q closes (E1-consistent: only while locked). Deliberately NOT Esc — that
+    // is the browser's lock exit and pauses to the splash instead (see header).
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (document.pointerLockElement === null) return;
+      if (event.code === 'KeyQ') closeReader();
+    };
     document.addEventListener('pointerdown', onPointerDown);
     document.addEventListener('contextmenu', onContextMenu);
+    document.addEventListener('keydown', onKeyDown);
     return () => {
       document.removeEventListener('pointerdown', onPointerDown);
       document.removeEventListener('contextmenu', onContextMenu);
+      document.removeEventListener('keydown', onKeyDown);
     };
-  }, [display, fireRustle]);
+  }, [display, fireRustle, closeReader]);
 
   useFrame((_, delta) => {
     const light = lightRef.current;
