@@ -145,6 +145,17 @@ export const POSES: readonly CameraPose[] = [
     ...READING_STANCE,
     book: { address: GOLDEN_BOOK, phase: { revealedLines: 40 } },
   },
+  // ── Infinity-mirror pose, appended (P1–P12 never renumbered). PROVISIONAL
+  //    until the mirror mood gate.
+  // P13 — in the vestibule walk lane between the facing mirrors, looking
+  //       across the stair alcove into the left mirror: the corridor of
+  //       spiral stairs receding into fog.
+  {
+    position: { x: 0.72, y: EYE_HEIGHT, z: -(HEX_APOTHEM + 1.8) },
+    yaw: (90 * Math.PI) / 180,
+    pitch: (-6 * Math.PI) / 180,
+    coordinate: { n: 0n, floor: 0n },
+  },
 ];
 
 /** Spawn pose (§4.7) — pose 1, the single source. */

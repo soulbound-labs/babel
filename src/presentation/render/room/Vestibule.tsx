@@ -17,13 +17,12 @@ import {
   DOOR_HEIGHT,
   DOOR_WIDTH,
   HEX_APOTHEM,
-  MIRROR_HEIGHT,
   STAIR_RADIUS,
   VESTIBULE_DEPTH,
   VESTIBULE_WIDTH,
 } from './dimensions';
+import { InfinityMirrors } from './InfinityMirrors';
 import { stoneMaterial, voidMaterial } from './materials';
-import { MirrorSurface } from './MirrorSurface';
 import { mustMerge, wallForSide } from './Room';
 import { Staircase } from './Staircase';
 import { ALCOVE_BACK_X, ALCOVE_NEAR_Z, STAIR_AXIS_X, STAIR_AXIS_Z } from '../player/stair';
@@ -158,12 +157,9 @@ export function Vestibule() {
     <group>
       <mesh geometry={shell} material={stoneMaterial} />
       <mesh geometry={closets} material={voidMaterial} />
-      {/* Right flank, past the closet doorway (which ends ~1.2 m in) so the
-          glass reads against stone, not against the closet's black recess. */}
-      <MirrorSurface
-        position={[HALF_W - 0.02, MIRROR_HEIGHT / 2 + 0.3, -(HEX_APOTHEM + 1.8)]}
-        rotationY={-Math.PI / 2}
-      />
+      {/* The facing mirror pair — placeholders here; RoomStream mounts the live
+          reflective pair for the current room (InfinityMirrors live). */}
+      <InfinityMirrors />
       <group position={[STAIR_AXIS_X, 0, STAIR_CENTER_Z]}>
         <Staircase />
       </group>

@@ -50,13 +50,18 @@ describe('camera poses (§4.4)', () => {
   });
 
   it('P5–P8 each carry a logical (n, floor) bigint coordinate to teleport to', () => {
-    expect(POSES).toHaveLength(12);
+    expect(POSES).toHaveLength(13); // P13 appended (infinity mirrors) — P1–P12 never renumbered
     for (let i = 4; i < 8; i++) {
       const coord = POSES[i]?.coordinate;
       expect(coord).toBeDefined();
       expect(typeof coord?.n).toBe('bigint');
       expect(typeof coord?.floor).toBe('bigint');
     }
+  });
+
+  it('P13 (infinity mirrors) teleports to origin and carries no book', () => {
+    expect(POSES[12]?.coordinate).toEqual({ n: 0n, floor: 0n });
+    expect(POSES[12]?.book).toBeUndefined();
   });
 
   it('P1–P8 carry NO book field — the Unit 05 extension is additive (§4.7)', () => {
@@ -93,15 +98,15 @@ describe('camera poses (§4.4)', () => {
   });
 
   describe('parsePoseParam (E7)', () => {
-    it('parses 1–12 to the matching pose', () => {
-      for (let n = 1; n <= 12; n++) {
+    it('parses 1–13 to the matching pose', () => {
+      for (let n = 1; n <= 13; n++) {
         expect(parsePoseParam(`?pose=${n}`)).toBe(POSES[n - 1]);
       }
     });
 
-    it('rejects 0, 13, and out-of-range with null (normal spawn)', () => {
+    it('rejects 0, 14, and out-of-range with null (normal spawn)', () => {
       expect(parsePoseParam('?pose=0')).toBeNull();
-      expect(parsePoseParam('?pose=13')).toBeNull();
+      expect(parsePoseParam('?pose=14')).toBeNull();
       expect(parsePoseParam('?pose=100')).toBeNull();
       expect(parsePoseParam('?pose=-1')).toBeNull();
     });
