@@ -89,7 +89,6 @@ const coverMaterial = new MeshStandardMaterial({ color: '#231710', roughness: 0.
 
 /** The closed travelling book shows its front cover (a ±x face) to the group +z. */
 const CLOSED_LOCAL_YAW = Math.PI / 2;
-const Q_YAW_PI = new Quaternion().setFromEuler(new Euler(0, Math.PI, 0));
 const Q_YAW_NEG_HALF = new Quaternion().setFromEuler(new Euler(0, -CLOSED_LOCAL_YAW, 0));
 
 /** Open-book covers: left board + right board + spine ridge, merged = 1 draw. */
@@ -251,8 +250,13 @@ export function BookReader({ handleRef, audioBus, audioCtx, pinned }: BookReader
           .clone()
           .addScaledVector(dir, READ_DISTANCE)
           .add(new Vector3(0, READ_HEIGHT_OFFSET, 0)),
-        // Book +z faces the camera, perpendicular to the held gaze — legible.
-        quaternion: camera.quaternion.clone().multiply(Q_YAW_PI),
+        // The page front (+z, where the FrontSide glyphs + left vellum live)
+        // must face the reader: the camera looks down its local -z, so its
+        // local +z already points back at the eye. Copying camera.quaternion
+        // aims the spread's +z at the reader — legible, glyphs unculled. (A
+        // yaw-π flip here would face the spread AWAY: the reader would see the
+        // glow-lit BACK of the vellum with the FrontSide type culled.)
+        quaternion: camera.quaternion.clone(),
       };
       travelRef.current = { start, end };
       setDisplay(pick.address);
@@ -364,7 +368,8 @@ export function BookReader({ handleRef, audioBus, audioCtx, pinned }: BookReader
             .clone()
             .addScaledVector(dir, READ_DISTANCE)
             .add(new Vector3(0, READ_HEIGHT_OFFSET, 0)),
-          quaternion: camera.quaternion.clone().multiply(Q_YAW_PI),
+          // Page front (+z) faces the reader — see the onPick end pose.
+          quaternion: camera.quaternion.clone(),
         };
         travelRef.current = { start, end };
         pickRef.current = null; // shelf instance left untouched while pinned
