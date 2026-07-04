@@ -28,6 +28,7 @@
     "started": "2026-07-04T01:45:00Z",
     "completed-steps": [4, 5, 6, 7, 8, 9, 10],
     "context": "full",
-    "completed": "2026-07-04T01:55:00Z"
+    "completed": "2026-07-04T01:55:00Z",
+    "narrative-commit": "ae94c8bdb91be6ee914adcdb4e46261eff085b66"
   }
 }
