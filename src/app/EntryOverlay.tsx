@@ -92,7 +92,10 @@ export function EntryOverlay({ onEnter }: EntryOverlayProps) {
     >
       <div style={{ fontSize: '2.2rem', letterSpacing: '0.9rem' }}>BABEL</div>
       <div style={{ fontSize: '0.8rem', letterSpacing: '0.2rem', opacity: 0.5 }}>
-        {phase === 'returned' ? 'click to return' : 'click to enter'}
+        {phase === 'returned' ? 'click to continue' : 'click to enter'}
+      </div>
+      <div style={{ fontSize: '0.65rem', letterSpacing: '0.15rem', opacity: 0.3 }}>
+        E or Esc — return book to shelf
       </div>
     </div>
   );

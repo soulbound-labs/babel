@@ -13,7 +13,7 @@
  * content comes from `openPage`, memoized, computed only on open/settle.
  *
  * Input while reading: left-click = next page, right-click = previous page,
- * E = close and walk on.
+ * E or Esc = close and walk on (Esc also drops pointer lock → pause splash).
  */
 import { Text } from '@react-three/drei';
 import { useFrame, useThree } from '@react-three/fiber';
@@ -75,6 +75,7 @@ import {
 } from './reader-state';
 import type { ReaderEvent, ReaderState, ReadingPhase, SurfaceModeLike } from './reader-state';
 import { GLOW_OFFSET, glowIntensityAt, READING_GLOW } from './reading-light';
+import { useBookHover } from './useBookHover';
 import { useBookPick } from './useBookPick';
 import type { BookPick } from './useBookPick';
 import type { AudioBus } from '../../audio/audio-bus';
@@ -293,14 +294,21 @@ export function BookReader({ handleRef, audioBus, audioCtx, pinned }: BookReader
     setDisplay(null);
   }, [handleRef, restoreShelfInstance]);
 
+  // Live precisely when a click would open a book: not pinned, reader closed.
+  const interactionEnabled = useCallback(
+    () => pinned === undefined && machineRef.current.status === 'closed',
+    [pinned],
+  );
+
   useBookPick({
-    enabled: useCallback(
-      () => pinned === undefined && machineRef.current.status === 'closed',
-      [pinned],
-    ),
+    enabled: interactionEnabled,
     coordinate: useCallback(() => handleRef.current?.state.coordinate ?? null, [handleRef]),
     onPick,
   });
+
+  // The reticle "invisible pointer" highlight: the book a click would open
+  // lights up a little (shares the pick's gate exactly).
+  useBookHover({ enabled: interactionEnabled });
 
   // --- Page rustle (§4.5): ONE positional emitter per reading session ---
   // Create-in-body / dispose-in-cleanup; keyed on the open/close transition
@@ -346,7 +354,7 @@ export function BookReader({ handleRef, audioBus, audioCtx, pinned }: BookReader
     };
     const onContextMenu = (event: Event) => event.preventDefault();
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.code === 'KeyE') closeReader();
+      if (event.code === 'KeyE' || event.code === 'Escape') closeReader();
     };
     document.addEventListener('pointerdown', onPointerDown);
     document.addEventListener('contextmenu', onContextMenu);
