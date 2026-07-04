@@ -88,3 +88,17 @@ ramp/2) is provisional until the ramp width is confirmed.
 > replace old in `docs/mood/unit-03/` **with an amendment appended to
 > `docs/mood/unit-03/checklist.md`** (date, cause, quoted unchanged knob values,
 > re-blessing). Old captures live in git history only.
+
+## 5. Deviations recorded (gate owner's direction)
+
+- **Stair walk-band widened (Rei, Phase-7 walkthrough).** The helix felt like
+  "squeezing to fit a perfect cutout": the player-center band `[STAIR_INNER_R
+0.36, STAIR_OUTER_R 0.60]` was 0.24 m, narrower than the 0.56 m capsule, so
+  collision pinned the body against the newel and the outer edge at once. Rei
+  chose the collision-only fix (over re-modeling the stair): **`STAIR_OUTER_R`
+  0.60 → 0.72** (`stair.ts`), a 0.36 m corridor with 0.22 m vertigo overhang
+  past the tread; inner unchanged (clears the 0.055 newel). Treads visually
+  untouched. **Pending Rei's re-walk to confirm the squeeze is gone.**
+- **Edge traversal:** the ±64 walk is by design (a vast library). Evaluate the
+  edge fog via `?pose=7` (n=62, in the ramp; room 64 + void plug live ahead).
+  `WALKABLE_BOUND` (64) is frozen — coordinate doctrine; not changed.
