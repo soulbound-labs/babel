@@ -50,6 +50,10 @@ Every change is bound to the doctrines registered in `docs/doctrine/doctrine-man
 - `docs/doctrine/audio-doctrine.md` — the N-emitter `AudioBus`: frozen handle-based API, the narrow
   `BusContext` test seam, procedural ambient, entry-gesture resume, and the Web Audio lifecycle
   gotchas. Read before touching `src/presentation/audio/**` or debugging silence.
+- `docs/doctrine/book-reading-doctrine.md` — the book hero moment: troika SDF glyphs on vellum via
+  drei, the parallel spread reveal, the spine-pivot bend the type rides, the
+  reading-mode-under-`suspend()` seam, and the pointer-lock input contract (Q closes, Esc pauses).
+  Read before touching `src/presentation/render/reading/**` or the vendored reading font.
 - `docs/doctrine/mood-gate-doctrine.md` — pinning subjective quality: deterministic poses + committed
   reference captures + objective checklist floor, the human as instrument, and the re-render-and-compare
   regression protocol. Read before changing anything that touches light, fog, or materials.
