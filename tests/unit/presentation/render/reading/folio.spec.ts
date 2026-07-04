@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
-import { BOOK_PAGES } from '../../../../../../src/presentation/render/room/dimensions';
-import { toRoman } from '../../../../../../src/presentation/render/reading/folio';
+import { BOOK_PAGES } from '@/presentation/render/room/dimensions';
+import { toRoman } from '@/presentation/render/reading/folio';
 
 describe('toRoman', () => {
   it('renders the canonical numerals (lowercase)', () => {
