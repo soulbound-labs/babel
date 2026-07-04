@@ -13,7 +13,11 @@
  * content comes from `openPage`, memoized, computed only on open/settle.
  *
  * Input while reading: left-click = next page, right-click = previous page,
- * E or Esc = close and walk on (Esc also drops pointer lock → pause splash).
+ * Esc = close and walk on. Esc is the browser's own pointer-lock exit (its
+ * keydown isn't reliably delivered while locked), so the close is driven off
+ * the resulting pointer-lock LOSS in the overlay, not a keydown here: the
+ * overlay reads `readingRef` and calls `closeBookRef` on lock-loss, then shows
+ * no splash (an Esc while NOT reading pauses to the splash instead).
  */
 import { Text } from '@react-three/drei';
 import { useFrame, useThree } from '@react-three/fiber';
@@ -33,7 +37,7 @@ import {
   Vector3,
 } from 'three';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
-import type { RefObject } from 'react';
+import type { MutableRefObject, RefObject } from 'react';
 
 import {
   BOOK_PAGES,
@@ -141,9 +145,24 @@ export type BookReaderProps = {
    * never wall-clock. Interaction is disabled while pinned.
    */
   pinned?: { address: LineAddress; phase: ReadingPhase };
+  /**
+   * Published to the overlay so an Esc-driven pointer-lock loss knows whether a
+   * book is open: true ⇒ the loss closes the book (no pause splash); false ⇒
+   * the loss raises the splash. Kept in sync with the open/closed transition.
+   */
+  readingRef?: MutableRefObject<boolean>;
+  /** Published close handle so the overlay can return the book to the shelf on lock-loss. */
+  closeBookRef?: MutableRefObject<(() => void) | null>;
 };
 
-export function BookReader({ handleRef, audioBus, audioCtx, pinned }: BookReaderProps) {
+export function BookReader({
+  handleRef,
+  audioBus,
+  audioCtx,
+  pinned,
+  readingRef,
+  closeBookRef,
+}: BookReaderProps) {
   const camera = useThree((s) => s.camera);
 
   const machineRef = useRef<ReaderState>(CLOSED_READER);
@@ -313,6 +332,21 @@ export function BookReader({ handleRef, audioBus, audioCtx, pinned }: BookReader
     setDisplay(null);
   }, [handleRef, restoreShelfInstance]);
 
+  // Publish reading status + the close handle so the overlay can drive close
+  // off the Esc pointer-lock loss (whose keydown isn't reliable while locked).
+  const reading = display !== null;
+  useEffect(() => {
+    if (!readingRef) return;
+    readingRef.current = reading;
+  }, [reading, readingRef]);
+  useEffect(() => {
+    if (!closeBookRef) return;
+    closeBookRef.current = closeReader;
+    return () => {
+      closeBookRef.current = null;
+    };
+  }, [closeBookRef, closeReader]);
+
   // Live precisely when a click would open a book: not pinned, reader closed.
   const interactionEnabled = useCallback(
     () => pinned === undefined && machineRef.current.status === 'closed',
@@ -372,18 +406,13 @@ export function BookReader({ handleRef, audioBus, audioCtx, pinned }: BookReader
       }
     };
     const onContextMenu = (event: Event) => event.preventDefault();
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.code === 'KeyE' || event.code === 'Escape') closeReader();
-    };
     document.addEventListener('pointerdown', onPointerDown);
     document.addEventListener('contextmenu', onContextMenu);
-    document.addEventListener('keydown', onKeyDown);
     return () => {
       document.removeEventListener('pointerdown', onPointerDown);
       document.removeEventListener('contextmenu', onContextMenu);
-      document.removeEventListener('keydown', onKeyDown);
     };
-  }, [display, closeReader, fireRustle]);
+  }, [display, fireRustle]);
 
   useFrame((_, delta) => {
     const light = lightRef.current;
@@ -502,7 +531,10 @@ export function BookReader({ handleRef, audioBus, audioCtx, pinned }: BookReader
 
   // Folios: 1-based roman numerals at the bottom-outer corners. The right folio
   // is blank whenever its leaf is (same guard as rightPageText).
-  const leftFolioText = useMemo(() => (display === null ? '' : toRoman(display.page + 1)), [display]);
+  const leftFolioText = useMemo(
+    () => (display === null ? '' : toRoman(display.page + 1)),
+    [display],
+  );
   const rightFolioText = useMemo(
     () => (display === null || display.page + 1 >= BOOK_PAGES ? '' : toRoman(display.page + 2)),
     [display],

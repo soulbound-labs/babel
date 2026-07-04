@@ -5,7 +5,7 @@
  * one line. The audio bus is created here too; the entry click resumes it
  * (one gesture satisfies pointer lock AND audio policy — §4.7, E2).
  */
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 import { LocalPresencePort } from '../adapters/presence/local-presence-port';
 import { PresenceContext } from '../presentation/presence-context';
@@ -27,6 +27,11 @@ export function App() {
   // disposes the first stack (closing its AudioContext) and builds a fresh
   // one, so the surviving bus is always live.
   const [audio, setAudio] = useState<AudioStack>(null);
+  // Reader ↔ overlay bridge: Esc is the browser's pointer-lock exit, so the
+  // overlay drives book-close off the lock LOSS. `readingRef` tells it a book
+  // is open (close it, no splash); `closeBookRef` is how it shelves the book.
+  const readingRef = useRef(false);
+  const closeBookRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
     if (typeof AudioContext === 'undefined') return;
@@ -45,8 +50,18 @@ export function App() {
 
   return (
     <PresenceContext.Provider value={presencePort}>
-      <WorldScene audioBus={audio?.bus} audioCtx={audio?.ctx} footsteps={audio?.footsteps} />
-      <EntryOverlay onEnter={() => audio?.bus.resume() ?? Promise.resolve()} />
+      <WorldScene
+        audioBus={audio?.bus}
+        audioCtx={audio?.ctx}
+        footsteps={audio?.footsteps}
+        readingRef={readingRef}
+        closeBookRef={closeBookRef}
+      />
+      <EntryOverlay
+        onEnter={() => audio?.bus.resume() ?? Promise.resolve()}
+        readingRef={readingRef}
+        closeBookRef={closeBookRef}
+      />
     </PresenceContext.Provider>
   );
 }
