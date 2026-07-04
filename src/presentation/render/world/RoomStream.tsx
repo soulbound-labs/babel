@@ -3,7 +3,7 @@
  * per-material mega-instancing:
  *
  *   stone ×11 = 1 draw call · wood (shelves + spiral turn) = 1 · metal
- *   railing = 1 · void (closet recesses) = 1 · bulb spheres = 1 · books = 11
+ *   railing = 1 · bulb spheres = 1 · books = 11
  *   (per-room meshes — `instanceId === slot` per mesh is the FROZEN Unit 05
  *   seam; room identity = which mesh the ray hit, in `userData`) · mirror
  *   pairs ×3 (current + horizontal neighbors; the current room's pair is
@@ -63,11 +63,7 @@ import { entranceVoidGeometry, hexStoneGeometry, mustMerge } from '../room/Room'
 import { railingGeometry } from '../room/Shaft';
 import { shelvesGeometry } from '../room/Shelves';
 import { spiralTurnGeometry } from '../room/Staircase';
-import {
-  closetDoorwaysGeometry,
-  farDoorPlugGeometry,
-  vestibuleStoneGeometry,
-} from '../room/Vestibule';
+import { farDoorPlugGeometry, vestibuleStoneGeometry } from '../room/Vestibule';
 import { ShaftImpostor } from './ShaftImpostor';
 import { streamTransforms } from './streaming';
 import type { RoomTransform } from './streaming';
@@ -82,7 +78,7 @@ const bookMaterial = new MeshStandardMaterial({ color: '#ffffff', roughness: 0.9
 const bulbMaterial = new MeshBasicMaterial({ color: BULB_COLOR });
 
 type StreamObjects = {
-  megas: InstancedMesh[]; // stone, wood, metal, void — one instance per live room
+  megas: InstancedMesh[]; // stone, wood, metal — one instance per live room
   bulbs: InstancedMesh; // 3 spheres per live room
   books: { group: Group; mesh: InstancedMesh }[];
   lights: PointLight[];
@@ -104,7 +100,6 @@ function buildObjects(): StreamObjects {
   const stone = makeMega(mustMerge([hexStoneGeometry(), vestibuleStoneGeometry()]), stoneMaterial);
   const wood = makeMega(mustMerge([shelvesGeometry(), spiral]), woodMaterial);
   const metal = makeMega(railingGeometry(), metalMaterial);
-  const voids = makeMega(closetDoorwaysGeometry(), voidMaterial);
 
   const bulbs = new InstancedMesh(
     new SphereGeometry(BULB_RADIUS, 12, 8),
@@ -151,7 +146,7 @@ function buildObjects(): StreamObjects {
   const entranceVoid = new Mesh(entranceVoidGeometry(), voidMaterial);
   const farPlug = new Mesh(farDoorPlugGeometry(), voidMaterial);
 
-  return { megas: [stone, wood, metal, voids], bulbs, books, lights, entranceVoid, farPlug };
+  return { megas: [stone, wood, metal], bulbs, books, lights, entranceVoid, farPlug };
 }
 
 /** The 12-light-pool targets for a live set (KDD-4). Parked lights get intensity 0. */
