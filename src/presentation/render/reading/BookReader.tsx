@@ -28,6 +28,7 @@ import {
   Mesh,
   MeshStandardMaterial,
   PlaneGeometry,
+  PointLight,
   Quaternion,
   Vector3,
 } from 'three';
@@ -69,12 +70,15 @@ import {
   tick,
   turnProgressOf,
 } from './reader-state';
-import type { ReaderEvent, ReaderState, SurfaceModeLike } from './reader-state';
+import type { ReaderEvent, ReaderState, ReadingPhase, SurfaceModeLike } from './reader-state';
+import { GLOW_OFFSET, glowIntensityAt, READING_GLOW } from './reading-light';
 import { useBookPick } from './useBookPick';
 import type { BookPick } from './useBookPick';
 import type { AudioBus } from '../../audio/audio-bus';
 import { startPageRustle } from '../../audio/page-rustle';
 import type { PageRustleHandle } from '../../audio/page-rustle';
+import type { LineAddress } from '../../../domain/entities';
+import { bookToSlot } from '../room/instancing';
 
 const COVER_THICKNESS = 0.006;
 const COVER_OVERHANG = 0.008;
@@ -123,9 +127,15 @@ export type BookReaderProps = {
   audioBus?: AudioBus;
   /** The shared app-lifetime context; absent in CI/jsdom — rustle skipped. */
   audioCtx?: BaseAudioContext;
+  /**
+   * Pose-harness pin (§4.6, P9–P12): mount the reader open at this exact
+   * phase, time frozen — approach/stream/turn driven by the phase params,
+   * never wall-clock. Interaction is disabled while pinned.
+   */
+  pinned?: { address: LineAddress; phase: ReadingPhase };
 };
 
-export function BookReader({ handleRef, audioBus, audioCtx }: BookReaderProps) {
+export function BookReader({ handleRef, audioBus, audioCtx, pinned }: BookReaderProps) {
   const camera = useThree((s) => s.camera);
 
   const machineRef = useRef<ReaderState>(CLOSED_READER);
@@ -136,6 +146,8 @@ export function BookReader({ handleRef, audioBus, audioCtx }: BookReaderProps) {
   const openGroupRef = useRef<Group>(null);
   const pickRef = useRef<{ mesh: InstancedMesh; slot: number } | null>(null);
   const travelRef = useRef<{ start: EndpointPose; end: EndpointPose } | null>(null);
+  const lightRef = useRef<PointLight>(null);
+  const pinnedInitRef = useRef(false);
   const scratch = useMemo(() => ({ m: new Matrix4(), v: new Vector3(), q: new Quaternion() }), []);
 
   const geometries = useMemo(
@@ -263,7 +275,10 @@ export function BookReader({ handleRef, audioBus, audioCtx }: BookReaderProps) {
   }, [handleRef, restoreShelfInstance]);
 
   useBookPick({
-    enabled: useCallback(() => machineRef.current.status === 'closed', []),
+    enabled: useCallback(
+      () => pinned === undefined && machineRef.current.status === 'closed',
+      [pinned],
+    ),
     coordinate: useCallback(() => handleRef.current?.state.coordinate ?? null, [handleRef]),
     onPick,
   });
@@ -325,8 +340,62 @@ export function BookReader({ handleRef, audioBus, audioCtx }: BookReaderProps) {
   }, [display, closeReader, fireRustle]);
 
   useFrame((_, delta) => {
+    const light = lightRef.current;
+
+    // ── Pinned pose mode (§4.6): phase params, not wall-clock; time frozen ──
+    if (pinned !== undefined) {
+      if (!pinnedInitRef.current) {
+        pinnedInitRef.current = true;
+        // Frame 1: the LocomotionController (subscribed earlier) has applied
+        // the ?pose camera; hold it forever — identical to a real read.
+        handleRef.current?.suspend();
+        const { wall, shelf, volume } = pinned.address;
+        const slot = bookToSlot(wall, shelf, volume);
+        const t = slotTransform(slot);
+        const start: EndpointPose = {
+          position: new Vector3(t.position.x, t.position.y, t.position.z),
+          quaternion: new Quaternion()
+            .setFromEuler(new Euler(t.rotation.x, t.rotation.y, t.rotation.z))
+            .multiply(Q_YAW_NEG_HALF),
+        };
+        const dir = camera.getWorldDirection(new Vector3());
+        const end: EndpointPose = {
+          position: camera.position
+            .clone()
+            .addScaledVector(dir, READ_DISTANCE)
+            .add(new Vector3(0, READ_HEIGHT_OFFSET, 0)),
+          quaternion: camera.quaternion.clone().multiply(Q_YAW_PI),
+        };
+        travelRef.current = { start, end };
+        pickRef.current = null; // shelf instance left untouched while pinned
+        setDisplay(pinned.address);
+      }
+      const travel = travelRef.current;
+      const group = groupRef.current;
+      const f = pinned.phase.approach ?? 1;
+      if (group && travel) {
+        group.position.lerpVectors(travel.start.position, travel.end.position, f);
+        group.quaternion.slerpQuaternions(travel.start.quaternion, travel.end.quaternion, f);
+        if (light) {
+          light.position.copy(group.position);
+          light.position.y += GLOW_OFFSET.y;
+          light.position.z += GLOW_OFFSET.z;
+          light.intensity = glowIntensityAt(f);
+        }
+      }
+      const approachingPinned = f < 1;
+      if (closedRef.current) closedRef.current.visible = approachingPinned;
+      if (openGroupRef.current) openGroupRef.current.visible = !approachingPinned;
+      uniforms.page.uRevealFront.value = approachingPinned ? 0 : (pinned.phase.revealedLines ?? 40);
+      uniforms.page.uTurnProgress.value = pinned.phase.turnProgress ?? 0;
+      return;
+    }
+
     const before = machineRef.current;
-    if (before.status === 'closed') return;
+    if (before.status === 'closed') {
+      if (light) light.intensity = 0;
+      return;
+    }
     const { state, events } = tick(before, delta);
     machineRef.current = state;
     fireRustle(events, state.address?.page ?? 0);
@@ -348,6 +417,14 @@ export function BookReader({ handleRef, audioBus, audioCtx }: BookReaderProps) {
       const f = approachFractionOf(state);
       group.position.lerpVectors(travel.start.position, travel.end.position, f);
       group.quaternion.slerpQuaternions(travel.start.quaternion, travel.end.quaternion, f);
+      // The reading glow rides the book and lights up over the ease (KDD-8);
+      // steady at rest, never flickering.
+      if (light) {
+        light.position.copy(group.position);
+        light.position.y += GLOW_OFFSET.y;
+        light.position.z += GLOW_OFFSET.z;
+        light.intensity = glowIntensityAt(f);
+      }
     }
     const approaching = state.status === 'approaching';
     if (closedRef.current) closedRef.current.visible = approaching;
@@ -368,15 +445,27 @@ export function BookReader({ handleRef, audioBus, audioCtx }: BookReaderProps) {
   }, [display]);
 
   const closedScale = useMemo(() => {
-    const slot = pickRef.current?.slot;
+    const slot =
+      pinned !== undefined
+        ? bookToSlot(pinned.address.wall, pinned.address.shelf, pinned.address.volume)
+        : pickRef.current?.slot;
     if (slot === undefined || display === null) return new Vector3(1, 1, 1);
     const t = slotTransform(slot);
     return new Vector3(t.scale.x, t.scale.y, t.scale.z);
-  }, [display]);
+  }, [display, pinned]);
 
   return (
     <>
       <GlyphPrewarm />
+      {/* Permanently mounted (intensity 0 when closed): constant light count
+          ⇒ no shader relink at book-open. The one declared mood knob (KDD-8). */}
+      <pointLight
+        ref={lightRef}
+        color={READING_GLOW.color}
+        intensity={0}
+        distance={READING_GLOW.distance}
+        decay={READING_GLOW.decay}
+      />
       {display !== null && (
         <group ref={groupRef}>
           <mesh

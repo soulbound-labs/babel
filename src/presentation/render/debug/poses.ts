@@ -4,8 +4,9 @@
  * approval these are locked by the committed reference captures at
  * `docs/mood/unit-03/pose-{1..4}.png`; Units 04/05/06 re-render and compare.
  */
-import type { Coordinate } from '../../../domain/entities';
+import type { Coordinate, LineAddress } from '../../../domain/entities';
 import { STAIR_AXIS_X, STAIR_AXIS_Z } from '../player/stair';
+import type { ReadingPhase } from '../reading/reader-state';
 import { CEILING_HEIGHT, EYE_HEIGHT, HEX_APOTHEM, VESTIBULE_DEPTH } from '../room/dimensions';
 
 export type CameraPose = {
@@ -19,6 +20,35 @@ export type CameraPose = {
    * P1–P4 (interior origin poses — the frozen Unit 03 references).
    */
   coordinate?: Coordinate;
+  /**
+   * Unit 05 (§4.6, additive — optional ⇒ non-breaking for P1–P8): pin the
+   * BookReader open at this address and phase. Approach/stream/turn are driven
+   * by the phase params, never wall-clock — deterministic captures.
+   */
+  book?: { address: LineAddress; phase: ReadingPhase };
+};
+
+/**
+ * The pinned golden capture address (Unit 05 §4.6): the origin room's first
+ * book, first page — anchored to the frozen golden vector so P10–P12 render
+ * byte-identical glyphs forever.
+ */
+export const GOLDEN_BOOK: LineAddress = {
+  n: 0n,
+  floor: 0n,
+  wall: 0,
+  shelf: 0,
+  volume: 0,
+  page: 0,
+  line: 0,
+};
+
+/** P10–P12 share one reading framing: standing before book-wall 0 at origin. */
+const READING_STANCE = {
+  position: { x: 0.27, y: EYE_HEIGHT, z: 1.08 },
+  yaw: (-120 * Math.PI) / 180,
+  pitch: (-8 * Math.PI) / 180,
+  coordinate: { n: 0n, floor: 0n } as Coordinate,
 };
 
 // P1 — spawn framing: railed shaft, a book-wall's 640 spines, one bulb receding into fog.
@@ -85,6 +115,34 @@ export const POSES: readonly CameraPose[] = [
     yaw: (150 * Math.PI) / 180,
     pitch: (15 * Math.PI) / 180,
     coordinate: { n: 0n, floor: 0n },
+  },
+  // ── Unit 05 chills-gate poses (§4.6) — RESERVED P9–P12, appended after
+  //    Unit 04's P5–P8; P1–P8 above are never renumbered. Framings are
+  //    PROVISIONAL until the gate; the golden address + phase params are
+  //    pinned. All at the origin room's first book, first page.
+  // P9 P-approach — book mid-travel (approach fraction t = 0.5), upright;
+  //     pitched down to catch the book between shelf 0 and the reading rest.
+  {
+    position: { x: 0.27, y: EYE_HEIGHT, z: 1.08 },
+    yaw: (-120 * Math.PI) / 180,
+    pitch: (-32 * Math.PI) / 180,
+    coordinate: { n: 0n, floor: 0n },
+    book: { address: GOLDEN_BOOK, phase: { approach: 0.5 } },
+  },
+  // P10 P-stream — page open, 20 of 40 lines resolved, 21–40 blank vellum.
+  {
+    ...READING_STANCE,
+    book: { address: GOLDEN_BOOK, phase: { revealedLines: 20 } },
+  },
+  // P11 P-turn — spine-pivot bend at turnProgress = 0.5 (half-turn).
+  {
+    ...READING_STANCE,
+    book: { address: GOLDEN_BOOK, phase: { revealedLines: 40, turnProgress: 0.5 } },
+  },
+  // P12 P-resolved — all 40 lines resolved, book at rest, room fog-dark behind.
+  {
+    ...READING_STANCE,
+    book: { address: GOLDEN_BOOK, phase: { revealedLines: 40 } },
   },
 ];
 
