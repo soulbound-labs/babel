@@ -3,15 +3,17 @@ type: is
 id: is-01kwnpwy5vnqn5vdn1v6sk0nn0
 title: "Unit 05 coordination: rebase onto RoomStream; per-mesh book raycast seam"
 kind: task
-status: open
+status: closed
 priority: 2
-version: 1
+version: 2
 labels:
   - unit-05
   - seam
 dependencies: []
 created_at: 2026-07-04T04:41:27.995Z
-updated_at: 2026-07-04T04:41:27.995Z
+updated_at: 2026-07-04T05:36:39.653Z
+closed_at: 2026-07-04T05:36:39.652Z
+close_reason: "Satisfied by the Unit 05 execution (session 2026-07-04, feat/05-book-reading db722a1..d1b2a65): built directly on merged RoomStream; per-mesh (0,0) userData raycast seam implemented in useBookPick.ts; additive-only edits to poses.ts/dimensions.ts held (P9-P12 reserved)."
 ---
 Coordination note for Unit 05 (book reading, docs/tasks/ongoing/05-book-reading/) — Unit 04 landed the RoomStream restructure it must build on. Whoever implements Unit 05:
 

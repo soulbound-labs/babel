@@ -5,14 +5,14 @@ title: Split the 1.16 MB main chunk (three.js) flagged by every build
 kind: task
 status: open
 priority: 2
-version: 1
+version: 2
 spec_path: docs/tasks/completed/03-world-render/03-world-render-spec.md
 labels:
   - synthesis
   - optimisation
 dependencies: []
 created_at: 2026-07-03T22:35:47.535Z
-updated_at: 2026-07-03T22:35:47.535Z
+updated_at: 2026-07-04T05:36:40.140Z
 ---
 ## Why now (session signal)
 Unit 03 pulled three.js + R3F into the bundle: `pnpm build` now emits `dist/assets/index-*.js 1,162.97 kB (gzip 321 kB)` and warns on every build. Units 04-07 only grow this; the warning will train everyone to ignore build output.
@@ -28,3 +28,7 @@ Constraints — do NOT modify: src/domain/** (frozen); the WorldScene component 
 Verification: pnpm build (no warning); pnpm ci:local.
 
 originating-session: 2026-07-03 | effort: S | cross-repo: in-repo
+
+## Notes
+
+Update from session 2026-07-04 (05-book-reading): main chunk grew 1.17 MB -> 1.31 MB (troika-three-text + its worker via drei <Text>). Troika is a natural dynamic-import candidate when splitting.
