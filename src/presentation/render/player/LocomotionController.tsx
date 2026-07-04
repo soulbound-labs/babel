@@ -18,6 +18,7 @@ import { useFrame, useThree } from '@react-three/fiber';
 import { useContext, useEffect, useImperativeHandle, useMemo, useRef } from 'react';
 import type { Ref } from 'react';
 
+import { ORIGIN } from '../../../domain/entities';
 import type { Coordinate } from '../../../domain/entities';
 import type { PlayerState } from '../../../domain/ports';
 import { canMove } from '../../traversal/bounds';
@@ -56,6 +57,8 @@ const KEY_MAP: Record<string, keyof Pick<LocomotionInput, 'forward' | 'back' | '
 
 export type LocomotionControllerProps = {
   initialPose: CameraPose;
+  /** Logical coordinate the pose starts at (§4.4 teleport); defaults to ORIGIN. */
+  initialCoordinate?: Coordinate;
   handleRef?: Ref<LocomotionHandle>;
   /** Called synchronously inside the frame on an accepted commit (§4.2.1 step 3). */
   onCommit?: (coordinate: Coordinate) => void;
@@ -63,14 +66,15 @@ export type LocomotionControllerProps = {
 
 export function LocomotionController({
   initialPose,
+  initialCoordinate = ORIGIN,
   handleRef,
   onCommit,
 }: LocomotionControllerProps) {
   const camera = useThree((s) => s.camera);
   const presencePort = useContext(PresenceContext);
   const publishPresence = useMemo(() => createPresencePublisher(presencePort), [presencePort]);
-  const stateRef = useRef<LocomotionState>(createLocomotionState(initialPose));
-  const traversalRef = useRef<TraversalState>(createTraversal());
+  const stateRef = useRef<LocomotionState>(createLocomotionState(initialPose, initialCoordinate));
+  const traversalRef = useRef<TraversalState>(createTraversal(initialCoordinate));
   const trackerRef = useRef<OriginTracker>(INITIAL_TRACKER);
   const collisionRef = useRef(
     createCollisionContext(liveCollisionSpecs(traversalRef.current.coordinate)),

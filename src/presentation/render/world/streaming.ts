@@ -7,7 +7,7 @@
  * function of the coordinate: no timers, no promises, nothing to pop (KDD-3).
  */
 import type { Coordinate } from '../../../domain/entities';
-import { WALKABLE_BOUND } from '../../traversal/bounds';
+import { isWithinBounds, WALKABLE_BOUND } from '../../traversal/bounds';
 import { liveRooms } from '../../traversal/working-set';
 import type { RoomSlot } from '../../traversal/working-set';
 import type { RoomCollisionSpec } from '../player/collision';
@@ -34,6 +34,34 @@ export function roomPosition(dn: number, dfloor: number): LocalPosition {
 /** All live rooms' transforms, in working-set order (stable — pool slots map 1:1). */
 export function streamTransforms(slots: readonly RoomSlot[]): RoomTransform[] {
   return slots.map((slot) => ({ slot, position: roomPosition(slot.dn, slot.dfloor) }));
+}
+
+/**
+ * Δfloor offsets of the shaft impostor slices (§4.2.4). Floors ±1 are real
+ * rooms in the live set, so the illusion begins at |Δfloor| = 2 and fades into
+ * fog by ~11 m. Ordered inner→outer per sign so a truncated set (near the edge)
+ * always keeps the nearest, most-visible tiers.
+ */
+export const SHAFT_SLICE_DELTAS = [2, 3, 4, -2, -3, -4] as const;
+
+export type ShaftSlice = {
+  dfloor: number;
+  /** Slice center in the local float frame — on the shaft axis (dn = 0). */
+  position: LocalPosition;
+};
+
+/**
+ * Impostor slice transforms (§4.2.4) — a pure function of the coordinate.
+ * Consistency rule (binding): each slice sits exactly where `liveRooms` would
+ * place the real room at that Δfloor (dn = 0), so `position === roomPosition(0,
+ * d)`. What you see down the shaft is literally where the stairs take you.
+ * Slices whose absolute floor leaves the ±64 region are absent: the shaft ends
+ * in fog, matching the walkable stop (§4.2.5).
+ */
+export function shaftSlices(c: Coordinate): ShaftSlice[] {
+  return SHAFT_SLICE_DELTAS.filter((d) =>
+    isWithinBounds({ n: c.n, floor: c.floor + BigInt(d) }),
+  ).map((d) => ({ dfloor: d, position: roomPosition(0, d) }));
 }
 
 /**

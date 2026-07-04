@@ -32,6 +32,47 @@ export const DEFAULT_ATMOSPHERE: AtmosphereProfile = {
   ambientIntensity: 0.05,
 };
 
+/**
+ * Edge-fog ramp (§4.4) — the ONLY new mood knob this unit adds. Density thickens
+ * as the player nears the ±64 walkable bound so the world dissolves into murk
+ * instead of hitting a visible terminator. Width is in rooms/floors; max density
+ * is live-tunable at the mood gate. `fogColor`/`toneMappingExposure`/ambient/
+ * background never modulate — only `fogDensity` (see the identity clause below).
+ */
+export const RAMP = {
+  /** Distance-to-edge (rooms or floors) at which the ramp begins; 0 = the edge itself. */
+  width: 4,
+  /** Peak `FogExp2` density at the edge — DEFAULT is the floor, this is the ceiling. */
+  maxDensity: 0.32,
+} as const;
+
+/**
+ * The atmosphere at a coordinate's distance from the two edges (§4.4). Pure and
+ * position-deterministic: at rest at coordinate X, density is exactly f(X) every
+ * session. `FogExp2` is scene-global, so this is whole-scene density as a
+ * function of the player coordinate — not spatially local fog.
+ *
+ * Identity clause (MUST): outside the ramp zone the result is byte-identical to
+ * `DEFAULT_ATMOSPHERE`, so every Unit 03 pose is unaffected. Only `fogDensity`
+ * ever ramps. `distanceToEdge*` are the min over the near/far edge, in
+ * rooms/floors (already converted to small `number` by the caller — §4.2.5).
+ */
+export function atmosphereAt(
+  distanceToEdgeRooms: number,
+  distanceToEdgeFloors: number,
+): AtmosphereProfile {
+  const nearest = Math.min(distanceToEdgeRooms, distanceToEdgeFloors);
+  if (nearest >= RAMP.width) return DEFAULT_ATMOSPHERE; // identity: interior is untouched
+  // Linear ramp from the default floor (at width) to the ceiling (at the edge).
+  const t = clamp01((RAMP.width - nearest) / RAMP.width);
+  const fogDensity = DEFAULT_ATMOSPHERE.fogDensity + t * (RAMP.maxDensity - DEFAULT_ATMOSPHERE.fogDensity);
+  return { ...DEFAULT_ATMOSPHERE, fogDensity };
+}
+
+function clamp01(x: number): number {
+  return x < 0 ? 0 : x > 1 ? 1 : x;
+}
+
 /** Renderer subset we touch — keeps the seam testable and the swap narrow. */
 type AtmosphereRenderer = Pick<WebGLRenderer, 'toneMapping' | 'toneMappingExposure'>;
 

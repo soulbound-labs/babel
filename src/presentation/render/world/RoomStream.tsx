@@ -64,6 +64,7 @@ import {
   farDoorPlugGeometry,
   vestibuleStoneGeometry,
 } from '../room/Vestibule';
+import { ShaftImpostor } from './ShaftImpostor';
 import { streamTransforms } from './streaming';
 import type { RoomTransform } from './streaming';
 
@@ -210,6 +211,8 @@ export function RoomStream({ rebaseRef, initialCoordinate = ORIGIN }: RoomStream
     [],
   );
   const mirrorGroups = useRef<(Group | null)[]>([null, null, null]);
+  // The shaft impostor rebases in the SAME frame as the rooms (§4.2.4 consistency rule).
+  const shaftRef = useRef<((c: Coordinate) => void) | null>(null);
 
   const applyCoordinate = useCallback(
     (coordinate: Coordinate) => {
@@ -290,6 +293,9 @@ export function RoomStream({ rebaseRef, initialCoordinate = ORIGIN }: RoomStream
           frontEdge.position.z,
         );
       }
+
+      // Same-frame: the shaft impostor is phase-locked to this coordinate (§4.2.4).
+      shaftRef.current?.(coordinate);
     },
     [objects, scratch],
   );
@@ -316,6 +322,7 @@ export function RoomStream({ rebaseRef, initialCoordinate = ORIGIN }: RoomStream
       ))}
       <primitive object={objects.entranceVoid} />
       <primitive object={objects.farPlug} />
+      <ShaftImpostor applyRef={shaftRef} initialCoordinate={initialCoordinate} />
       {MIRROR_DELTAS.map((dn, i) => (
         <group
           key={`mirror-${dn}`}

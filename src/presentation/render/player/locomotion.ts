@@ -9,6 +9,7 @@
  * in the controller — this module never constructs or mutates a Coordinate (T-1).
  */
 import { ORIGIN } from '../../../domain/entities';
+import type { Coordinate } from '../../../domain/entities';
 import type { PlayerState } from '../../../domain/ports';
 import { ORIGIN_ROOM_CONTEXT, MAX_STEP, resolveMovement } from './collision';
 import type { CollisionContext } from './collision';
@@ -44,14 +45,17 @@ export function clampPitch(pitch: number): number {
   return Math.min(POSE_PITCH_MAX, Math.max(-POSE_PITCH_MAX, pitch));
 }
 
-export function createLocomotionState(pose: {
-  position: { x: number; y: number; z: number };
-  yaw: number;
-  pitch: number;
-}): LocomotionState {
+export function createLocomotionState(
+  pose: {
+    position: { x: number; y: number; z: number };
+    yaw: number;
+    pitch: number;
+  },
+  coordinate: Coordinate = ORIGIN,
+): LocomotionState {
   return {
     player: {
-      coordinate: ORIGIN, // the traversal machine moves this (controller-wired, Phase 3)
+      coordinate, // the traversal machine moves this on commit (§4.2.1); teleport poses seed it
       localPosition: { x: pose.position.x, y: pose.position.y, z: pose.position.z },
       yaw: pose.yaw,
       pitch: clampPitch(pose.pitch),
