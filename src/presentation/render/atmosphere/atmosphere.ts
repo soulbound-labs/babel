@@ -65,7 +65,8 @@ export function atmosphereAt(
   if (nearest >= RAMP.width) return DEFAULT_ATMOSPHERE; // identity: interior is untouched
   // Linear ramp from the default floor (at width) to the ceiling (at the edge).
   const t = clamp01((RAMP.width - nearest) / RAMP.width);
-  const fogDensity = DEFAULT_ATMOSPHERE.fogDensity + t * (RAMP.maxDensity - DEFAULT_ATMOSPHERE.fogDensity);
+  const fogDensity =
+    DEFAULT_ATMOSPHERE.fogDensity + t * (RAMP.maxDensity - DEFAULT_ATMOSPHERE.fogDensity);
   return { ...DEFAULT_ATMOSPHERE, fogDensity };
 }
 

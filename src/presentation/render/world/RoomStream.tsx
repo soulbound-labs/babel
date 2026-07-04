@@ -21,7 +21,7 @@
  * Streaming is a pure function of the coordinate; zero allocation per frame
  * (commits allocate a handful of transforms, frames allocate nothing).
  */
-import { useCallback, useLayoutEffect, useMemo, useRef } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 import type { RefObject } from 'react';
 import {
   Color,
@@ -41,6 +41,10 @@ import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.j
 
 import { ORIGIN } from '../../../domain/entities';
 import type { Coordinate } from '../../../domain/entities';
+import type { AudioBus } from '../../audio/audio-bus';
+import { startRoomHums } from '../../audio/room-hums';
+import type { RoomHumsHandle } from '../../audio/room-hums';
+import { startShaftDrone } from '../../audio/shaft-drone';
 import { WALKABLE_BOUND } from '../../traversal/bounds';
 import { liveRooms } from '../../traversal/working-set';
 import { STAIR_AXIS_X, STAIR_AXIS_Z } from '../player/stair';
@@ -70,6 +74,8 @@ import type { RoomTransform } from './streaming';
 
 const MAX_ROOMS = 11;
 const MIRROR_DELTAS = [-1, 0, 1] as const;
+/** Current vestibule's shaft axis in the local frame (§4.3 shaft drone). */
+const SHAFT_DRONE_LOCAL = { x: STAIR_AXIS_X, y: 1.0, z: STAIR_AXIS_Z };
 const MIRROR_LOCAL: [number, number, number] = [
   VESTIBULE_WIDTH / 2 - 0.02,
   MIRROR_HEIGHT / 2 + 0.3,
@@ -202,9 +208,17 @@ export type RoomStreamProps = {
   /** The controller writes here-registered callback synchronously on commit (§4.2.1). */
   rebaseRef: RefObject<((c: Coordinate) => void) | null>;
   initialCoordinate?: Coordinate;
+  /** The app-lifetime audio bus + context (§4.3). Absent in CI/jsdom — hums are skipped. */
+  audioBus?: AudioBus;
+  audioCtx?: BaseAudioContext;
 };
 
-export function RoomStream({ rebaseRef, initialCoordinate = ORIGIN }: RoomStreamProps) {
+export function RoomStream({
+  rebaseRef,
+  initialCoordinate = ORIGIN,
+  audioBus,
+  audioCtx,
+}: RoomStreamProps) {
   const objects = useMemo(buildObjects, []);
   const scratch = useMemo(
     () => ({ m: new Matrix4(), byDelta: new Map<string, RoomTransform>() }),
@@ -213,10 +227,40 @@ export function RoomStream({ rebaseRef, initialCoordinate = ORIGIN }: RoomStream
   const mirrorGroups = useRef<(Group | null)[]>([null, null, null]);
   // The shaft impostor rebases in the SAME frame as the rooms (§4.2.4 consistency rule).
   const shaftRef = useRef<((c: Coordinate) => void) | null>(null);
+  // Per-room bulb hums (KDD-5): keyed by roomKey, following the streaming lifecycle 1:1.
+  const humsRef = useRef<Map<string, RoomHumsHandle>>(new Map());
+  const audioRef = useRef<{ bus: AudioBus; ctx: BaseAudioContext } | null>(null);
+  const lastTransformsRef = useRef<RoomTransform[]>([]);
+
+  // Create/dispose per room on set change, reposition survivors on re-base — all
+  // in the same frame as the geometry + listener pose (§4.2.1 step 3, note #8).
+  const syncHums = useCallback((transforms: RoomTransform[]) => {
+    const audio = audioRef.current;
+    if (!audio) return; // suspended/absent context is fine (lifecycle MUST #4)
+    const map = humsRef.current;
+    const live = new Set<string>();
+    for (const t of transforms) {
+      live.add(t.slot.key);
+      const positions = BULB_POSITIONS.map((b) => ({
+        x: t.position.x + b.x,
+        y: t.position.y + b.y,
+        z: t.position.z + b.z,
+      }));
+      const existing = map.get(t.slot.key);
+      if (existing) existing.reposition(positions);
+      else map.set(t.slot.key, startRoomHums(audio.bus, audio.ctx, positions));
+    }
+    for (const [key, handle] of map) {
+      if (live.has(key)) continue;
+      handle.dispose(); // room left the set — stop its one-shot sources (MUST #6)
+      map.delete(key);
+    }
+  }, []);
 
   const applyCoordinate = useCallback(
     (coordinate: Coordinate) => {
       const transforms = streamTransforms(liveRooms(coordinate));
+      lastTransformsRef.current = transforms;
       const { m, byDelta } = scratch;
       byDelta.clear();
       for (const t of transforms) byDelta.set(`${t.slot.dn}:${t.slot.dfloor}`, t);
@@ -296,8 +340,10 @@ export function RoomStream({ rebaseRef, initialCoordinate = ORIGIN }: RoomStream
 
       // Same-frame: the shaft impostor is phase-locked to this coordinate (§4.2.4).
       shaftRef.current?.(coordinate);
+      // Same-frame: per-room hums create/dispose/reposition with the geometry (§4.3).
+      syncHums(transforms);
     },
-    [objects, scratch],
+    [objects, scratch, syncHums],
   );
 
   useLayoutEffect(() => {
@@ -307,6 +353,25 @@ export function RoomStream({ rebaseRef, initialCoordinate = ORIGIN }: RoomStream
       rebaseRef.current = null;
     };
   }, [rebaseRef, applyCoordinate, initialCoordinate]);
+
+  // Audio lifecycle (§4.3): one effect, StrictMode-safe. When the bus arrives (or
+  // swaps on StrictMode remount) hums populate for the current set; cleanup
+  // disposes EMITTERS only (never bus.dispose() in streaming code — MUST #2).
+  useEffect(() => {
+    const hums = humsRef.current; // stable Map instance — safe to use in cleanup
+    audioRef.current = audioBus && audioCtx ? { bus: audioBus, ctx: audioCtx } : null;
+    syncHums(lastTransformsRef.current);
+    // The shaft drone (§4.3, cut-able): one emitter at the current vestibule's
+    // shaft axis — the current room anchors the local frame, so it re-bases free.
+    const audio = audioRef.current;
+    const drone = audio ? startShaftDrone(audio.bus, audio.ctx, SHAFT_DRONE_LOCAL) : null;
+    return () => {
+      drone?.dispose();
+      for (const handle of hums.values()) handle.dispose();
+      hums.clear();
+      audioRef.current = null;
+    };
+  }, [audioBus, audioCtx, syncHums]);
 
   return (
     <group>

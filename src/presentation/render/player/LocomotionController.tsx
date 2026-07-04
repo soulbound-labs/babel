@@ -21,6 +21,7 @@ import type { Ref } from 'react';
 import { ORIGIN } from '../../../domain/entities';
 import type { Coordinate } from '../../../domain/entities';
 import type { PlayerState } from '../../../domain/ports';
+import type { FootstepsHandle } from '../../audio/footsteps';
 import { canMove } from '../../traversal/bounds';
 import { createTraversal, crossThreshold } from '../../traversal/traversal';
 import type { TraversalState } from '../../traversal/traversal';
@@ -55,11 +56,16 @@ const KEY_MAP: Record<string, keyof Pick<LocomotionInput, 'forward' | 'back' | '
     KeyD: 'right',
   };
 
+/** Stride length (m) between footstep triggers — a walking gait, not a sprint. */
+const STRIDE_LENGTH = 0.75;
+
 export type LocomotionControllerProps = {
   initialPose: CameraPose;
   /** Logical coordinate the pose starts at (§4.4 teleport); defaults to ORIGIN. */
   initialCoordinate?: Coordinate;
   handleRef?: Ref<LocomotionHandle>;
+  /** Footsteps (§4.3): fired on the stride cadence, classified by surface mode. */
+  footsteps?: FootstepsHandle;
   /** Called synchronously inside the frame on an accepted commit (§4.2.1 step 3). */
   onCommit?: (coordinate: Coordinate) => void;
 };
@@ -68,6 +74,7 @@ export function LocomotionController({
   initialPose,
   initialCoordinate = ORIGIN,
   handleRef,
+  footsteps,
   onCommit,
 }: LocomotionControllerProps) {
   const camera = useThree((s) => s.camera);
@@ -76,6 +83,7 @@ export function LocomotionController({
   const stateRef = useRef<LocomotionState>(createLocomotionState(initialPose, initialCoordinate));
   const traversalRef = useRef<TraversalState>(createTraversal(initialCoordinate));
   const trackerRef = useRef<OriginTracker>(INITIAL_TRACKER);
+  const strideRef = useRef(0); // accumulated horizontal distance since the last footstep
   const collisionRef = useRef(
     createCollisionContext(liveCollisionSpecs(traversalRef.current.coordinate)),
   );
@@ -170,6 +178,16 @@ export function LocomotionController({
     const prev = state.player.localPosition;
     stateRef.current = stepLocomotion(state, inputRef.current, delta, collisionRef.current);
     const next = stateRef.current.player.localPosition;
+
+    // Footstep cadence (§4.3): accumulate horizontal travel (pre-commit-shift) and
+    // fire a step per stride, classified by the surface mode ('stair' → stair).
+    if (footsteps) {
+      strideRef.current += Math.hypot(next.x - prev.x, next.z - prev.z);
+      if (strideRef.current >= STRIDE_LENGTH) {
+        strideRef.current -= STRIDE_LENGTH;
+        footsteps.step(stateRef.current.surface === 'stair' ? 'stair' : 'stone');
+      }
+    }
 
     // Commit detection in feet space (§4.2.1); the ±64 gate runs BEFORE apply (T-5).
     const step = detectCommit(

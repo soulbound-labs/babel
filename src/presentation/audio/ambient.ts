@@ -1,21 +1,20 @@
 /**
- * Procedural ambient (§7.5) — zero asset files. Two source graphs on the bus:
+ * Procedural ambient (§7.5) — zero asset files. The app-lifetime, global hush:
  *   hush — looped seeded brown-ish noise → lowpass ≈ 220 Hz → slow gain LFO,
- *          on an `ambient` emitter at very low gain (felt, not heard);
- *   hums — 120 Hz sine + faint harmonic on a `positional` emitter at each
- *          bulb, so the positional path is genuinely exercised this unit.
- * "The hum of the bulbs": the light is unceasing, and so is its sound.
+ *          on an `ambient` emitter at very low gain (felt, not heard).
+ *
+ * Unit 04: the per-bulb HUMS moved to `room-hums.ts` — they follow the room
+ * streaming lifecycle (KDD-5), so the origin room's hums now arrive through the
+ * streaming path like every other room's (one code path). The hush is the only
+ * thing that stays app-lifetime and global.
  *
  * Browser-only module (real Web Audio); the bus's graph logic is what unit
  * tests cover (E5). Noise is seeded (xorshift32), never Math.random (C4).
  */
 import type { AudioBus, AudioEmitter } from './audio-bus';
-import { BULB_POSITIONS } from '../render/room/Bulbs';
 
 const HUSH_GAIN = 0.05;
 const HUSH_LFO_HZ = 0.06;
-const HUM_GAIN = 0.035;
-const HUM_FREQ = 120;
 
 /** Deterministic noise buffer — a leaky-integrated xorshift32 walk (brown-ish). */
 function makeNoiseBuffer(ctx: BaseAudioContext, seconds: number): AudioBuffer {
@@ -72,41 +71,6 @@ export function startAmbient(bus: AudioBus, ctx: BaseAudioContext): AmbientHandl
   lfo.start();
   sources.push(noise, lfo);
   nodes.push(lowpass, swell, lfoDepth);
-
-  // --- Two bulb hums (positional) ---
-  for (const position of BULB_POSITIONS) {
-    const hum = bus.createEmitter({
-      kind: 'positional',
-      position,
-      refDistance: 0.8,
-      rolloff: 1.4,
-    });
-    hum.setGain(HUM_GAIN);
-    emitters.push(hum);
-
-    const mix = ctx.createGain();
-    mix.gain.value = 1;
-    mix.connect(hum.input as AudioNode);
-    nodes.push(mix);
-
-    const fundamental = ctx.createOscillator();
-    fundamental.type = 'sine';
-    fundamental.frequency.value = HUM_FREQ;
-    fundamental.connect(mix);
-    fundamental.start();
-    sources.push(fundamental);
-
-    const harmonic = ctx.createOscillator();
-    harmonic.type = 'sine';
-    harmonic.frequency.value = HUM_FREQ * 2;
-    const harmonicGain = ctx.createGain();
-    harmonicGain.gain.value = 0.25;
-    harmonic.connect(harmonicGain);
-    harmonicGain.connect(mix);
-    harmonic.start();
-    sources.push(harmonic);
-    nodes.push(harmonicGain);
-  }
 
   return {
     dispose() {

@@ -15,6 +15,7 @@ import { Vector3 } from 'three';
 import { ORIGIN } from '../../domain/entities';
 import type { Coordinate } from '../../domain/entities';
 import type { AudioBus } from '../audio/audio-bus';
+import type { FootstepsHandle } from '../audio/footsteps';
 import { DebugStats } from './debug/DebugStats';
 import { parseDebugParam, parsePoseParam, SPAWN_POSE } from './debug/poses';
 import { LocomotionController } from './player/LocomotionController';
@@ -42,9 +43,13 @@ export type WorldSceneProps = {
   locomotionRef?: Ref<LocomotionHandle>;
   /** The §4.6 audio bus — the camera drives its listener pose. */
   audioBus?: AudioBus;
+  /** The app-lifetime audio context (§4.3) — RoomStream builds per-room hum graphs on it. */
+  audioCtx?: BaseAudioContext;
+  /** Footsteps (§4.3) — the controller fires `step(surface)` on the stride cadence. */
+  footsteps?: FootstepsHandle;
 };
 
-export function WorldScene({ locomotionRef, audioBus }: WorldSceneProps = {}) {
+export function WorldScene({ locomotionRef, audioBus, audioCtx, footsteps }: WorldSceneProps = {}) {
   // Debug hooks (§7.1, E7): invalid ?pose is ignored — normal spawn.
   const search = window.location.search;
   const pose = parsePoseParam(search) ?? SPAWN_POSE;
@@ -66,6 +71,7 @@ export function WorldScene({ locomotionRef, audioBus }: WorldSceneProps = {}) {
         initialPose={pose}
         initialCoordinate={initialCoordinate}
         handleRef={locomotionRef}
+        footsteps={footsteps}
         onCommit={(c) => {
           rebaseRef.current?.(c);
           edgeVeilRef.current?.(c);
@@ -74,7 +80,12 @@ export function WorldScene({ locomotionRef, audioBus }: WorldSceneProps = {}) {
       {audioBus && <ListenerPoseDriver bus={audioBus} />}
       {debug && <DebugStats />}
       <EdgeVeil applyRef={edgeVeilRef} initialCoordinate={initialCoordinate} />
-      <RoomStream rebaseRef={rebaseRef} initialCoordinate={initialCoordinate} />
+      <RoomStream
+        rebaseRef={rebaseRef}
+        initialCoordinate={initialCoordinate}
+        audioBus={audioBus}
+        audioCtx={audioCtx}
+      />
     </Canvas>
   );
 }
