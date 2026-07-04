@@ -12,7 +12,7 @@
  */
 import { BOOK_PAGES, READ_APPROACH_SECONDS, READ_TURN_SECONDS } from '../room/dimensions';
 import type { PageAddress } from './book-address';
-import { frontAt, PAGE_REVEAL_SECONDS } from './reveal';
+import { frontAt, SPREAD_REVEAL_SECONDS } from './reveal';
 import { turnProgressAt } from './turn';
 
 export type ReaderStatus = 'closed' | 'approaching' | 'open' | 'turning';
@@ -24,7 +24,7 @@ export type SurfaceModeLike = 'floor' | 'stair';
 export type ReadingPhase = {
   /** Approach fraction 0..1 (P9: 0.5). */
   approach?: number;
-  /** Lines resolved 0..40 (P10: 20; P12: 40). */
+  /** Lines resolved across the spread 0..80 — left leaf 0..39, right 40..79. */
   revealedLines?: number;
   /** Spine-pivot turn progress 0..1 (P11: 0.5). */
   turnProgress?: number;
@@ -86,15 +86,19 @@ export function acknowledgeIntent(state: ReaderState): ReaderState {
 
 export type ReaderTransition = { state: ReaderState; events: ReaderEvent[] };
 
-/** Turn forward. Mid-stream: completes the reveal, THEN turns (§4.4). */
+/**
+ * Turn forward to the NEXT spread (page += 2: an open spread is the leaf pair
+ * `(page, page+1)`). Mid-stream: completes the reveal FIRST, then turns (§4.4).
+ * Refused when the next spread's left leaf would fall past the last page.
+ */
 export function advance(state: ReaderState): ReaderTransition {
   if (state.status !== 'open' || state.address === null) return { state, events: [] };
-  if (state.address.page >= BOOK_PAGES - 1) return { state, events: [] };
+  if (state.address.page + 2 > BOOK_PAGES - 1) return { state, events: [] };
   return {
     state: {
       ...state,
       status: 'turning',
-      revealPhase: PAGE_REVEAL_SECONDS, // reveal.complete(): never half-written mid-flight
+      revealPhase: SPREAD_REVEAL_SECONDS, // reveal.complete(): never half-written mid-flight
       turnElapsed: 0,
       turnDirection: 1,
     },
@@ -102,15 +106,15 @@ export function advance(state: ReaderState): ReaderTransition {
   };
 }
 
-/** Turn back. The retreated page re-opens fully revealed. */
+/** Turn back to the PREVIOUS spread (page -= 2). It re-opens fully revealed. */
 export function retreat(state: ReaderState): ReaderTransition {
   if (state.status !== 'open' || state.address === null) return { state, events: [] };
-  if (state.address.page <= 0) return { state, events: [] };
+  if (state.address.page - 2 < 0) return { state, events: [] };
   return {
     state: {
       ...state,
       status: 'turning',
-      revealPhase: PAGE_REVEAL_SECONDS,
+      revealPhase: SPREAD_REVEAL_SECONDS,
       turnElapsed: 0,
       turnDirection: -1,
     },
@@ -142,7 +146,7 @@ export function tick(state: ReaderState, deltaSeconds: number): ReaderTransition
     }
     case 'open':
       return {
-        state: { ...state, revealPhase: Math.min(state.revealPhase + dt, PAGE_REVEAL_SECONDS) },
+        state: { ...state, revealPhase: Math.min(state.revealPhase + dt, SPREAD_REVEAL_SECONDS) },
         events: [],
       };
     case 'turning': {
@@ -150,18 +154,18 @@ export function tick(state: ReaderState, deltaSeconds: number): ReaderTransition
       if (turnElapsed < READ_TURN_SECONDS) {
         return { state: { ...state, turnElapsed }, events: [] };
       }
-      // Settle: commit the page flip; forward pages stream fresh, retreated
-      // pages are already read — fully revealed.
+      // Settle: commit the spread flip (±2); forward spreads stream fresh,
+      // retreated spreads are already read — fully revealed.
       const address = state.address;
       if (address === null) return { state: CLOSED_READER, events: [] };
-      const page = address.page + (state.turnDirection === 1 ? 1 : -1);
+      const page = address.page + (state.turnDirection === 1 ? 2 : -2);
       return {
         state: {
           ...state,
           status: 'open',
           address: { ...address, page },
           turnElapsed: 0,
-          revealPhase: state.turnDirection === 1 ? 0 : PAGE_REVEAL_SECONDS,
+          revealPhase: state.turnDirection === 1 ? 0 : SPREAD_REVEAL_SECONDS,
         },
         events: ['turn-settle'],
       };

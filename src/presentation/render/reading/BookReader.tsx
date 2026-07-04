@@ -36,9 +36,11 @@ import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.j
 import type { RefObject } from 'react';
 
 import {
+  BOOK_PAGES,
   EYE_HEIGHT,
   PAGE_FACE_HEIGHT,
   PAGE_FACE_WIDTH,
+  PAGE_LINES,
   PAGE_TEXT_MARGIN,
   READ_DISTANCE,
   READ_HEIGHT_OFFSET,
@@ -58,6 +60,7 @@ import {
 import type { PageAddress } from './book-address';
 import { openPage } from './page-content';
 import { createPageUniforms, patchPageMaterial } from './page-shader';
+import { SPREAD_LINES } from './reveal';
 import {
   acknowledgeIntent,
   advance,
@@ -159,11 +162,13 @@ export function BookReader({ handleRef, audioBus, audioCtx, pinned }: BookReader
     [],
   );
 
-  // The bent page and its glyphs SHARE the driven uniform objects
-  // (uTurnProgress/uRevealFront) so one write reaches both programs — the
-  // type rides the curl because both run the SAME babelBendPage (KDD-5). They
-  // differ only in uXOffset: the glyph mesh sits at the text margin, so its
-  // local x = 0 is PAGE_TEXT_MARGIN from the spine.
+  // Both glyph blocks SHARE the one driven reveal front (uRevealFront, 0..80):
+  // the front sweeps the left leaf (uLineStart 0 ⇒ global lines 0..39) then
+  // CONTINUES onto the right leaf (uLineStart 40 ⇒ 40..79). The right block also
+  // shares the page's uTurnProgress so the type rides the curl of the turning
+  // leaf (KDD-5); the left leaf is flat, so it neither bends nor needs it. Glyph
+  // local x = 0 sits PAGE_TEXT_MARGIN from each leaf's spine (uXOffset), so the
+  // bend axis lines up with the vellum.
   const uniforms = useMemo(() => {
     const page = createPageUniforms({
       uPageWidth: PAGE_FACE_WIDTH,
@@ -171,15 +176,23 @@ export function BookReader({ handleRef, audioBus, audioCtx, pinned }: BookReader
       uXOffset: 0, // page mesh spine at local x = 0
       uLineTop: 0,
     });
-    const glyphs = createPageUniforms({
+    const glyphLeft = createPageUniforms({
+      uPageWidth: PAGE_FACE_WIDTH,
+      uLinePitch: READ_LINE_PITCH,
+      uLineTop: 0, // anchorY 'top' ⇒ glyph local y = 0 at the first line
+      uLineStart: 0, // left leaf → global lines 0..39
+    });
+    const glyphRight = createPageUniforms({
       uPageWidth: PAGE_FACE_WIDTH,
       uLinePitch: READ_LINE_PITCH,
       uXOffset: PAGE_TEXT_MARGIN,
-      uLineTop: 0, // anchorY 'top' ⇒ glyph local y = 0 at the first line
+      uLineTop: 0,
+      uLineStart: PAGE_LINES, // right leaf → global lines 40..79
     });
-    glyphs.uTurnProgress = page.uTurnProgress;
-    glyphs.uRevealFront = page.uRevealFront;
-    return { page, glyphs };
+    glyphLeft.uRevealFront = page.uRevealFront;
+    glyphRight.uTurnProgress = page.uTurnProgress;
+    glyphRight.uRevealFront = page.uRevealFront;
+    return { page, glyphLeft, glyphRight };
   }, []);
 
   const materials = useMemo(() => {
@@ -187,11 +200,13 @@ export function BookReader({ handleRef, audioBus, audioCtx, pinned }: BookReader
     const rightVellum = createVellumMaterial();
     rightVellum.side = DoubleSide; // the turning leaf shows blank vellum from behind
     patchPageMaterial(rightVellum, uniforms.page, { bend: true, reveal: false });
-    const glyphs = createGlyphMaterial();
-    // Glyphs bend AND reveal; FrontSide (default) so type vanishes past 90° —
-    // the leaf's back reads as blank paper, exactly right for a turned page.
-    patchPageMaterial(glyphs, uniforms.glyphs, { bend: true, reveal: true });
-    return { leftVellum, rightVellum, glyphs };
+    // FrontSide (default) so type vanishes past 90° — the turned leaf's back
+    // reads as blank paper. Only the right leaf turns, so only it bends.
+    const leftGlyphs = createGlyphMaterial();
+    patchPageMaterial(leftGlyphs, uniforms.glyphLeft, { bend: false, reveal: true });
+    const rightGlyphs = createGlyphMaterial();
+    patchPageMaterial(rightGlyphs, uniforms.glyphRight, { bend: true, reveal: true });
+    return { leftVellum, rightVellum, leftGlyphs, rightGlyphs };
   }, [uniforms]);
 
   /** KDD-7: hide the pulled shelf instance without touching neighbours. */
@@ -391,7 +406,9 @@ export function BookReader({ handleRef, audioBus, audioCtx, pinned }: BookReader
       const approachingPinned = f < 1;
       if (closedRef.current) closedRef.current.visible = approachingPinned;
       if (openGroupRef.current) openGroupRef.current.visible = !approachingPinned;
-      uniforms.page.uRevealFront.value = approachingPinned ? 0 : (pinned.phase.revealedLines ?? 40);
+      uniforms.page.uRevealFront.value = approachingPinned
+        ? 0
+        : (pinned.phase.revealedLines ?? SPREAD_LINES);
       uniforms.page.uTurnProgress.value = pinned.phase.turnProgress ?? 0;
       return;
     }
@@ -440,11 +457,18 @@ export function BookReader({ handleRef, audioBus, audioCtx, pinned }: BookReader
     uniforms.page.uTurnProgress.value = turnProgressOf(state);
   });
 
-  // Content: assembled once per (address, page) via the memoized openPage —
-  // never in useFrame, never per reveal step (KDD-4, INV-B5).
-  const pageText = useMemo(() => {
+  // Content: BOTH leaves of the spread assembled once per address via the
+  // memoized openPage — the left leaf is `page`, the right leaf `page + 1`.
+  // Never in useFrame, never per reveal step (KDD-4, INV-B5).
+  const leftPageText = useMemo(() => {
     if (display === null) return '';
     return openPage(display)
+      .map((row) => row.join(''))
+      .join('\n');
+  }, [display]);
+  const rightPageText = useMemo(() => {
+    if (display === null || display.page + 1 >= BOOK_PAGES) return '';
+    return openPage({ ...display, page: display.page + 1 })
       .map((row) => row.join(''))
       .join('\n');
   }, [display]);
@@ -484,6 +508,8 @@ export function BookReader({ handleRef, audioBus, audioCtx, pinned }: BookReader
             <mesh geometry={geometries.covers} material={coverMaterial} />
             <mesh geometry={geometries.leftPage} material={materials.leftVellum} />
             <mesh geometry={geometries.rightPage} material={materials.rightVellum} />
+            {/* Left leaf (page N): its spine is at x = 0, so the text block
+                starts a margin in from the leaf's outer edge (-PAGE_FACE_WIDTH). */}
             <Text
               font={READING_FONT_URL}
               fontSize={GLYPH_FONT_SIZE}
@@ -491,10 +517,27 @@ export function BookReader({ handleRef, audioBus, audioCtx, pinned }: BookReader
               anchorX="left"
               anchorY="top"
               whiteSpace="nowrap"
-              material={materials.glyphs}
+              material={materials.leftGlyphs}
+              position={[
+                -PAGE_FACE_WIDTH + PAGE_TEXT_MARGIN,
+                PAGE_FACE_HEIGHT / 2 - PAGE_TEXT_MARGIN,
+                0.0015,
+              ]}
+            >
+              {leftPageText}
+            </Text>
+            {/* Right leaf (page N+1): the turning leaf; its glyphs bend + reveal. */}
+            <Text
+              font={READING_FONT_URL}
+              fontSize={GLYPH_FONT_SIZE}
+              lineHeight={GLYPH_LINE_HEIGHT}
+              anchorX="left"
+              anchorY="top"
+              whiteSpace="nowrap"
+              material={materials.rightGlyphs}
               position={[PAGE_TEXT_MARGIN, PAGE_FACE_HEIGHT / 2 - PAGE_TEXT_MARGIN, 0.0015]}
             >
-              {pageText}
+              {rightPageText}
             </Text>
           </group>
         </group>

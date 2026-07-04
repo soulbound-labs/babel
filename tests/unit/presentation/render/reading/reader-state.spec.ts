@@ -14,7 +14,7 @@ import {
   turnProgressOf,
 } from '@/presentation/render/reading/reader-state';
 import type { ReaderState } from '@/presentation/render/reading/reader-state';
-import { PAGE_REVEAL_SECONDS } from '@/presentation/render/reading/reveal';
+import { SPREAD_REVEAL_SECONDS } from '@/presentation/render/reading/reveal';
 
 const ADDRESS = { n: 42n, floor: -7n, wall: 1, shelf: 2, volume: 3, page: 0 };
 
@@ -69,29 +69,29 @@ describe('reader state machine (INV-B6)', () => {
     expect(revealFrontOf(s)).toBe(0);
   });
 
-  it('streaming reveals at the locked cadence and caps at the full page', () => {
+  it('streaming reveals at the locked cadence and caps at the full spread', () => {
     let s = openedReader();
     s = tick(s, 1).state;
     expect(revealFrontOf(s)).toBe(8); // 8 lines/s
-    s = tick(s, PAGE_REVEAL_SECONDS).state;
-    expect(revealFrontOf(s)).toBe(40);
+    s = tick(s, SPREAD_REVEAL_SECONDS).state;
+    expect(revealFrontOf(s)).toBe(80); // both leaves (0..79)
   });
 
   it('advance mid-stream completes the reveal FIRST, then turns (never half-written)', () => {
     let s = openedReader();
-    s = tick(s, 1.0).state; // 8 of 40 lines revealed
+    s = tick(s, 1.0).state; // 8 of 80 lines revealed
     const { state, events } = advance(s);
     expect(events).toEqual(['turn-lift']);
     expect(state.status).toBe('turning');
-    expect(revealFrontOf(state)).toBe(40); // reveal.complete()
+    expect(revealFrontOf(state)).toBe(80); // reveal.complete() — whole spread
   });
 
-  it('the turn settles after the locked duration onto the next page, streaming fresh', () => {
+  it('the turn settles after the locked duration onto the next spread (+2), streaming fresh', () => {
     const s = advance(openedReader()).state;
     const settled = tick(s, READ_TURN_SECONDS + 0.01);
     expect(settled.events).toEqual(['turn-settle']);
     expect(settled.state.status).toBe('open');
-    expect(settled.state.address?.page).toBe(1);
+    expect(settled.state.address?.page).toBe(2); // spread (0,1) → (2,3)
     expect(revealFrontOf(settled.state)).toBe(0);
   });
 
@@ -107,20 +107,20 @@ describe('reader state machine (INV-B6)', () => {
     }
   });
 
-  it('retreat is refused at page 0; advance is refused at the last page', () => {
-    const s = openedReader();
+  it('retreat is refused on the first spread; advance is refused on the last spread', () => {
+    const s = openedReader(); // spread (0,1)
     expect(retreat(s).state).toBe(s);
     expect(retreat(s).events).toEqual([]);
-    const atEnd = { ...s, address: { ...ADDRESS, page: 409 } };
+    const atEnd = { ...s, address: { ...ADDRESS, page: 408 } }; // last spread (408,409)
     expect(advance(atEnd).state).toBe(atEnd);
   });
 
-  it('a retreated page re-opens fully revealed (only new pages stream)', () => {
-    let s: ReaderState = { ...openedReader(), address: { ...ADDRESS, page: 5 } };
+  it('a retreated spread re-opens fully revealed (only new spreads stream)', () => {
+    let s: ReaderState = { ...openedReader(), address: { ...ADDRESS, page: 6 } };
     s = retreat(s).state;
     const settled = tick(s, READ_TURN_SECONDS + 0.01).state;
-    expect(settled.address?.page).toBe(4);
-    expect(revealFrontOf(settled)).toBe(40);
+    expect(settled.address?.page).toBe(4); // spread (6,7) → (4,5)
+    expect(revealFrontOf(settled)).toBe(80);
   });
 
   it('close from mid-approach or mid-turn returns cleanly to CLOSED with resume intent', () => {

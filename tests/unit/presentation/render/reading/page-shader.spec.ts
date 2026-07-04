@@ -20,16 +20,20 @@ function fakeShader(): ShaderLike {
 describe('page shader injection (§4.4 glue)', () => {
   it('injects bend + reveal at the standard anchors and wires the shared uniforms', () => {
     const shader = fakeShader();
-    const uniforms = createPageUniforms({ uPageWidth: 0.24 });
+    const uniforms = createPageUniforms({ uPageWidth: 0.24, uLineStart: 40 });
     const ok = injectPageShader(shader, uniforms, { bend: true, reveal: true });
     expect(ok).toBe(true);
     expect(shader.vertexShader).toContain('babelBendPage(transformed)');
     expect(shader.vertexShader).toContain('vBabelLine');
+    // The per-leaf line offset is folded into the reveal varying.
+    expect(shader.vertexShader).toContain('uLineStart + (uLineTop - transformed.y)');
     expect(shader.fragmentShader).toContain('uRevealFront');
     expect(shader.fragmentShader).toContain('diffuseColor.a *= babelReveal');
     // Shared by reference: per-frame uniform writes reach the program.
     expect(shader.uniforms.uTurnProgress).toBe(uniforms.uTurnProgress);
     expect(shader.uniforms.uRevealFront).toBe(uniforms.uRevealFront);
+    expect(shader.uniforms.uLineStart).toBe(uniforms.uLineStart);
+    expect(shader.uniforms.uLineStart?.value).toBe(40);
     expect(shader.uniforms.uPageWidth?.value).toBe(0.24);
   });
 
@@ -40,6 +44,7 @@ describe('page shader injection (§4.4 glue)', () => {
     expect(ok).toBe(true);
     expect(shader.fragmentShader).toBe(before);
     expect(shader.uniforms.uRevealFront).toBeUndefined();
+    expect(shader.uniforms.uLineStart).toBeUndefined();
   });
 
   it('falls back to the project_vertex anchor when begin_vertex was consumed (troika)', () => {

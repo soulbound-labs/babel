@@ -32,6 +32,8 @@ export type PageUniforms = {
   uRevealFront: { value: number };
   uLineTop: { value: number };
   uLinePitch: { value: number };
+  /** This block's first global line index — 0 (left leaf) or 40 (right leaf). */
+  uLineStart: { value: number };
 };
 
 export type PageShaderOptions = {
@@ -51,12 +53,14 @@ export function createPageUniforms(
     uRevealFront: { value: init?.uRevealFront ?? 0 },
     uLineTop: { value: init?.uLineTop ?? 0 },
     uLinePitch: { value: init?.uLinePitch ?? 1 },
+    uLineStart: { value: init?.uLineStart ?? 0 },
   };
 }
 
 const VERTEX_REVEAL_DECL = /* glsl */ `
 uniform float uLineTop;
 uniform float uLinePitch;
+uniform float uLineStart;
 varying float vBabelLine;
 `;
 
@@ -107,6 +111,7 @@ export function injectPageShader(
     shader.uniforms.uRevealFront = uniforms.uRevealFront;
     shader.uniforms.uLineTop = uniforms.uLineTop;
     shader.uniforms.uLinePitch = uniforms.uLinePitch;
+    shader.uniforms.uLineStart = uniforms.uLineStart;
   }
 
   // --- Vertex declarations (prepended — valid before three's own decls) ---
@@ -115,7 +120,7 @@ export function injectPageShader(
 
   // --- Vertex body: line varying (pre-bend y), then the bend ---
   const bodyLines = [
-    opts.reveal ? 'vBabelLine = (uLineTop - transformed.y) / uLinePitch;' : '',
+    opts.reveal ? 'vBabelLine = uLineStart + (uLineTop - transformed.y) / uLinePitch;' : '',
     opts.bend ? 'transformed = babelBendPage(transformed);' : '',
   ]
     .filter(Boolean)
