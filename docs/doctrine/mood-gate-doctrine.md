@@ -38,6 +38,22 @@ the human instrument — it makes the instrument's verdict reproducible.
 5. **A failed checklist item needs an explicit recorded waiver** from the human gate
    owner — never a silent pass.
 
+### 2.1 Position-dependent knobs & the mood-touch rule (Unit 04)
+
+- **A knob may vary with the player _coordinate_ — if the interior stays byte-identical.**
+  The edge-fog `RAMP` in `atmosphere.ts` (`atmosphereAt`) ramps fog **density and color** toward
+  the ±64 walkable edge so the world dissolves into pale murk instead of a black wall. Its
+  **identity clause is a MUST**: outside the ramp zone `atmosphereAt` returns `DEFAULT_ATMOSPHERE`
+  byte-for-byte, so every interior pose is untouched. Only fog (density + at most `fogColor`) may
+  ramp — `background`/exposure/ambient never modulate. The mechanical companion still holds: at
+  each gate the `git diff` of `DEFAULT_ATMOSPHERE` + `Bulbs.tsx` **values** is empty (the ramp is
+  additive, the frozen knobs unchanged).
+- **The mood-touch rule.** A change touches mood iff it can alter any pixel of any committed pose —
+  _new geometry entering a committed pose's frustum touches mood whether or not any knob changed._
+  Knob-untouched is necessary but not sufficient. Streamed rooms replacing void in P1/P2/P4
+  sightlines is exactly why Unit 04 re-triggered this ritual **by design** (see
+  [`traversal-doctrine.md`](./traversal-doctrine.md)) — not a loophole to engineer around.
+
 ## 3. The objective floor (so review isn't hostage to vibes)
 
 The checklist carries the _objective_ half — for Unit 03: no visible horizon or sky
@@ -77,3 +93,6 @@ pre-commit, re-render — determinism reproduces them exactly.
   mechanism per its brief.
 - [`render-doctrine.md`](./render-doctrine.md) — deterministic presentation (§3) and
   the perf budget (§4) the checklist floor enforces.
+- [`traversal-doctrine.md`](./traversal-doctrine.md) — the edge-fog `RAMP` knob, the
+  coordinate-teleport poses (P5–P8), and the "geometry is not a mood knob" rule the shaft
+  impostor obeys.

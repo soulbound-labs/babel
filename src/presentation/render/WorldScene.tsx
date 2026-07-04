@@ -8,32 +8,20 @@
  * third-party, and presentation modules — never adapters or convex.
  */
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
-import { useEffect, useMemo } from 'react';
+import { useMemo, useRef } from 'react';
 import type { Ref } from 'react';
 import { Vector3 } from 'three';
 
+import { ORIGIN } from '../../domain/entities';
+import type { Coordinate } from '../../domain/entities';
 import type { AudioBus } from '../audio/audio-bus';
-import { applyAtmosphere, DEFAULT_ATMOSPHERE } from './atmosphere/atmosphere';
+import type { FootstepsHandle } from '../audio/footsteps';
 import { DebugStats } from './debug/DebugStats';
 import { parseDebugParam, parsePoseParam, SPAWN_POSE } from './debug/poses';
 import { LocomotionController } from './player/LocomotionController';
 import type { LocomotionHandle } from './player/LocomotionController';
-import { BookWalls } from './room/BookWalls';
-import { Bulbs } from './room/Bulbs';
-import { Room } from './room/Room';
-import { Shaft } from './room/Shaft';
-import { Shelves } from './room/Shelves';
-import { Vestibule } from './room/Vestibule';
-
-/** Applies the §4.8 atmosphere profile + the floor ambient inside the Canvas. */
-function Atmosphere() {
-  const scene = useThree((s) => s.scene);
-  const gl = useThree((s) => s.gl);
-  useEffect(() => {
-    applyAtmosphere(scene, gl, DEFAULT_ATMOSPHERE);
-  }, [scene, gl]);
-  return <ambientLight intensity={DEFAULT_ATMOSPHERE.ambientIntensity} />;
-}
+import { EdgeVeil } from './world/EdgeVeil';
+import { RoomStream } from './world/RoomStream';
 
 /** The camera drives the audio listener each frame (§4.6). */
 function ListenerPoseDriver({ bus }: { bus: AudioBus }) {
@@ -55,13 +43,23 @@ export type WorldSceneProps = {
   locomotionRef?: Ref<LocomotionHandle>;
   /** The §4.6 audio bus — the camera drives its listener pose. */
   audioBus?: AudioBus;
+  /** The app-lifetime audio context (§4.3) — RoomStream builds per-room hum graphs on it. */
+  audioCtx?: BaseAudioContext;
+  /** Footsteps (§4.3) — the controller fires `step(surface)` on the stride cadence. */
+  footsteps?: FootstepsHandle;
 };
 
-export function WorldScene({ locomotionRef, audioBus }: WorldSceneProps = {}) {
+export function WorldScene({ locomotionRef, audioBus, audioCtx, footsteps }: WorldSceneProps = {}) {
   // Debug hooks (§7.1, E7): invalid ?pose is ignored — normal spawn.
   const search = window.location.search;
   const pose = parsePoseParam(search) ?? SPAWN_POSE;
+  // The teleport coordinate (§4.4): P5–P8 carry a logical (n, floor); interior
+  // poses (P1–P4) settle at ORIGIN. Streaming + veil load this same-frame.
+  const initialCoordinate = pose.coordinate ?? ORIGIN;
   const debug = parseDebugParam(search);
+  // The same-frame re-base channel (§4.2.1): controller → RoomStream + EdgeVeil, no React round-trip.
+  const rebaseRef = useRef<((c: Coordinate) => void) | null>(null);
+  const edgeVeilRef = useRef<((c: Coordinate) => void) | null>(null);
 
   return (
     <Canvas
@@ -69,16 +67,25 @@ export function WorldScene({ locomotionRef, audioBus }: WorldSceneProps = {}) {
       dpr={[1, 1.5]}
       camera={{ fov: 62, near: 0.05, far: 60 }}
     >
-      <LocomotionController initialPose={pose} handleRef={locomotionRef} />
+      <LocomotionController
+        initialPose={pose}
+        initialCoordinate={initialCoordinate}
+        handleRef={locomotionRef}
+        footsteps={footsteps}
+        onCommit={(c) => {
+          rebaseRef.current?.(c);
+          edgeVeilRef.current?.(c);
+        }}
+      />
       {audioBus && <ListenerPoseDriver bus={audioBus} />}
       {debug && <DebugStats />}
-      <Atmosphere />
-      <Bulbs />
-      <Room />
-      <Shaft />
-      <Vestibule />
-      <Shelves />
-      <BookWalls />
+      <EdgeVeil applyRef={edgeVeilRef} initialCoordinate={initialCoordinate} />
+      <RoomStream
+        rebaseRef={rebaseRef}
+        initialCoordinate={initialCoordinate}
+        audioBus={audioBus}
+        audioCtx={audioCtx}
+      />
     </Canvas>
   );
 }

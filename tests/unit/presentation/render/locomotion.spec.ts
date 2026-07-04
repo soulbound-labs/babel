@@ -9,7 +9,13 @@ import {
 } from '@/presentation/render/player/locomotion';
 import type { LocomotionInput } from '@/presentation/render/player/locomotion';
 import { SPAWN_POSE } from '@/presentation/render/debug/poses';
-import { EYE_HEIGHT, POSE_PITCH_MAX, WALK_SPEED } from '@/presentation/render/room/dimensions';
+import { STAIR_AXIS_X, STAIR_AXIS_Z } from '@/presentation/render/player/stair';
+import {
+  CEILING_HEIGHT,
+  EYE_HEIGHT,
+  POSE_PITCH_MAX,
+  WALK_SPEED,
+} from '@/presentation/render/room/dimensions';
 
 const idleInput = (overrides: Partial<LocomotionInput> = {}): LocomotionInput => ({
   forward: false,
@@ -66,6 +72,41 @@ describe('INV-R5 — seam integrity (pure step logic)', () => {
     expect(clampPitch(-Math.PI)).toBe(-POSE_PITCH_MAX);
     const s = stepLocomotion(spawn(), idleInput({ pitch: 10 }), 1 / 60);
     expect(s.player.pitch).toBe(POSE_PITCH_MAX);
+  });
+
+  it('surface mode: stair positions ride the tread-top helix, floor stays slab-locked', () => {
+    // Mid-annulus at the mouth azimuth (tread 0 — floor level).
+    const onStair = {
+      ...spawn(),
+      player: {
+        ...spawn().player,
+        localPosition: { x: STAIR_AXIS_X, y: EYE_HEIGHT, z: STAIR_AXIS_Z + 0.48 },
+      },
+    };
+    const s1 = stepLocomotion(onStair, idleInput(), 1 / 60);
+    expect(s1.surface).toBe('stair');
+    expect(s1.player.localPosition.y).toBe(EYE_HEIGHT); // tread 0 is AT floor level
+
+    // Half a floor up the helix (θ = π side) — y follows the tread top.
+    const midClimb = {
+      ...spawn(),
+      player: {
+        ...spawn().player,
+        localPosition: {
+          x: STAIR_AXIS_X,
+          y: CEILING_HEIGHT / 2 + EYE_HEIGHT,
+          z: STAIR_AXIS_Z - 0.48,
+        },
+      },
+    };
+    const s2 = stepLocomotion(midClimb, idleInput(), 1 / 60);
+    expect(s2.surface).toBe('stair');
+    expect(s2.player.localPosition.y).toBeCloseTo(CEILING_HEIGHT / 2 + EYE_HEIGHT, 1);
+
+    // Spawn is flat floor.
+    const s3 = stepLocomotion(spawn(), idleInput(), 1 / 60);
+    expect(s3.surface).toBe('floor');
+    expect(s3.player.localPosition.y).toBe(EYE_HEIGHT);
   });
 
   it('delta is clamped (E8): a stalled tab cannot teleport the player', () => {

@@ -32,6 +32,75 @@ export const DEFAULT_ATMOSPHERE: AtmosphereProfile = {
   ambientIntensity: 0.05,
 };
 
+/**
+ * Edge-fog ramp (§4.4) — the ONLY new mood knob this unit adds. Density thickens
+ * as the player nears the ±64 walkable bound so the world dissolves into murk
+ * instead of hitting a visible terminator. Width is in rooms/floors; max density
+ * is live-tunable at the mood gate. `fogColor`/`toneMappingExposure`/ambient/
+ * background never modulate — only `fogDensity` (see the identity clause below).
+ */
+export const RAMP = {
+  /** Distance-to-edge (rooms or floors) at which the ramp begins; 0 = the edge itself. */
+  width: 4,
+  /** Peak `FogExp2` density at the edge — DEFAULT is the floor, this is the ceiling. */
+  maxDensity: 0.32,
+  /**
+   * Fog tint at the very edge (§4.4, Rei's Phase-7 direction). The interior fog
+   * is near-black (`#0b0a10`), so denser fog alone just goes to black and reads
+   * as a wall; ramping the tint toward this cool dim grey makes the edge
+   * dissolve into a visible glowing MURK instead. Live-tunable at the gate.
+   */
+  edgeFogColor: '#262735',
+} as const;
+
+/**
+ * The atmosphere at a coordinate's distance from the two edges (§4.4). Pure and
+ * position-deterministic: at rest at coordinate X, the profile is exactly f(X)
+ * every session. `FogExp2` is scene-global, so this is whole-scene fog as a
+ * function of the player coordinate — not spatially local fog.
+ *
+ * Identity clause (MUST): outside the ramp zone the result is byte-identical to
+ * `DEFAULT_ATMOSPHERE`, so every Unit 03 pose is unaffected. Only the FOG
+ * (density + color) ramps; `background`, `toneMappingExposure`, and
+ * `ambientIntensity` never modulate. `distanceToEdge*` are the min over the
+ * near/far edge, in rooms/floors (converted to small `number` by the caller).
+ */
+export function atmosphereAt(
+  distanceToEdgeRooms: number,
+  distanceToEdgeFloors: number,
+): AtmosphereProfile {
+  const nearest = Math.min(distanceToEdgeRooms, distanceToEdgeFloors);
+  if (nearest >= RAMP.width) return DEFAULT_ATMOSPHERE; // identity: interior is untouched
+  // Linear ramp from the default floor (at width) to the ceiling (at the edge).
+  const t = clamp01((RAMP.width - nearest) / RAMP.width);
+  const fogDensity =
+    DEFAULT_ATMOSPHERE.fogDensity + t * (RAMP.maxDensity - DEFAULT_ATMOSPHERE.fogDensity);
+  const fogColor = lerpHexColor(DEFAULT_ATMOSPHERE.fogColor, RAMP.edgeFogColor, t);
+  return { ...DEFAULT_ATMOSPHERE, fogDensity, fogColor };
+}
+
+function clamp01(x: number): number {
+  return x < 0 ? 0 : x > 1 ? 1 : x;
+}
+
+function parseHexColor(hex: string): { r: number; g: number; b: number } {
+  const n = parseInt(hex.slice(1), 16);
+  return { r: (n >> 16) & 0xff, g: (n >> 8) & 0xff, b: n & 0xff };
+}
+
+/** Per-channel linear blend a→b by t ∈ [0,1], back to `#rrggbb`. */
+function lerpHexColor(a: string, b: string, t: number): string {
+  const ca = parseHexColor(a);
+  const cb = parseHexColor(b);
+  const ch = (x: number, y: number) => Math.round(x + (y - x) * t);
+  return (
+    '#' +
+    [ch(ca.r, cb.r), ch(ca.g, cb.g), ch(ca.b, cb.b)]
+      .map((v) => v.toString(16).padStart(2, '0'))
+      .join('')
+  );
+}
+
 /** Renderer subset we touch — keeps the seam testable and the swap narrow. */
 type AtmosphereRenderer = Pick<WebGLRenderer, 'toneMapping' | 'toneMappingExposure'>;
 

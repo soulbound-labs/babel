@@ -12,12 +12,14 @@ import { PresenceContext } from '../presentation/presence-context';
 import { startAmbient } from '../presentation/audio/ambient';
 import { createAudioBus } from '../presentation/audio/audio-bus';
 import type { AudioBus } from '../presentation/audio/audio-bus';
+import { createFootsteps } from '../presentation/audio/footsteps';
+import type { FootstepsHandle } from '../presentation/audio/footsteps';
 import { WorldScene } from '../presentation/render/WorldScene';
 import { EntryOverlay } from './EntryOverlay';
 
 const presencePort = new LocalPresencePort();
 
-type AudioStack = { ctx: AudioContext; bus: AudioBus } | null;
+type AudioStack = { ctx: AudioContext; bus: AudioBus; footsteps: FootstepsHandle } | null;
 
 export function App() {
   // jsdom/CI has no Web Audio (E5); the scene never blocks on audio (E2).
@@ -31,8 +33,10 @@ export function App() {
     const ctx = new AudioContext();
     const bus = createAudioBus(ctx);
     const ambient = startAmbient(bus, ctx);
-    setAudio({ ctx, bus });
+    const footsteps = createFootsteps(bus, ctx);
+    setAudio({ ctx, bus, footsteps });
     return () => {
+      footsteps.dispose();
       ambient.dispose();
       bus.dispose();
       setAudio(null);
@@ -41,7 +45,7 @@ export function App() {
 
   return (
     <PresenceContext.Provider value={presencePort}>
-      <WorldScene audioBus={audio?.bus} />
+      <WorldScene audioBus={audio?.bus} audioCtx={audio?.ctx} footsteps={audio?.footsteps} />
       <EntryOverlay onEnter={() => audio?.bus.resume() ?? Promise.resolve()} />
     </PresenceContext.Provider>
   );

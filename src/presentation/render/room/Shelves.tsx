@@ -40,7 +40,7 @@ function wallBox(
   return g;
 }
 
-function shelvesGeometry(): BufferGeometry {
+export function shelvesGeometry(): BufferGeometry {
   const geoms: BufferGeometry[] = [];
   const radial = HEX_APOTHEM - SHELF_DEPTH / 2;
   for (const side of WALL_TO_SIDE) {

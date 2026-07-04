@@ -38,7 +38,11 @@ Cross-layer imports inside `src/` are **relative**; tests may use `@/`.
 The slot mapping nests exactly like the domain codec:
 `slot = (wall * 5 + shelf) * 32 + volume`, slots `0..639`, out-of-range throws.
 Unit 05 resolves clicks as `raycast → instanceId → slotToBook(instanceId)` — renumbering
-slots silently rewires which book every click opens.
+slots silently rewires which book every click opens. Since Unit 04, books ship as
+**eleven per-room 640-instance meshes** (`world/RoomStream.tsx`): `instanceId === slot`
+holds _per mesh_, and **room identity = which mesh the ray hit** (its parent group's
+`userData` carries `roomKey`/`coordinate`) — target "the current room's book mesh"
+explicitly; a doorway raycast can legally hit a neighbor's books.
 
 **One camera, one owner.** The locomotion controller owns the only camera.
 Unit 05 reads books in place through `suspend()` (camera yielded to the caller) and
@@ -62,7 +66,9 @@ slot; the audio noise buffer is seeded xorshift32. Consequences:
 Worst device in scope: **mid iGPU (Apple M1 / Iris Xe class), 60 fps target, < 30 fps
 is failure**. Enforcers, checked at the `?debug` HUD (`render/debug/DebugStats.tsx`):
 
-- **≤ 30 draw calls total**; all 640 books are **ONE `InstancedMesh`**; shelf boards
+- **≤ 30 draw calls total**; each room's 640 books are **ONE `InstancedMesh`** (eleven
+  per-room meshes across the working set — the Unit 05 room-identity seam; ~20 calls
+  interior, 21 at an edge, ledger in `docs/mood/unit-04/checklist.md`); shelf boards
   merged; shared material singletons in `room/materials.ts` keep the program count tiny.
 - `devicePixelRatio` clamped **≤ 1.5** in `WorldScene.tsx`.
 - **No shadow maps, no post-processing** — darkness does the occlusion; `FogExp2` +
@@ -76,8 +82,13 @@ doorway/stair blockers). Slide response iterates ≤ 3 times; residual violation
 the delta (stay put — never tunnel, never NaN); frame delta clamps at 100 ms so a
 hidden tab can't teleport the player through a wall. This purity is what makes
 containment property-testable in node (10⁴ random walks, `collision.spec.ts`).
-A physics engine (rapier et al.) buys nothing this geometry needs — if Unit 04's stair
-math outgrows the analytic model, **that** unit renegotiates with evidence.
+A physics engine (rapier et al.) buys nothing this geometry needs. Unit 04's helicoid
+stair landed _inside_ this analytic model — `render/player/stair.ts` is a pure cylindrical
+surface function (tread-top snap, `MAX_STEP` cliff-reject); the player-center walk-band
+`[STAIR_INNER_R, STAIR_OUTER_R]` was widened to `0.72` at the Phase-7 mood gate (the 0.24 m
+band pinned the 0.56 m capsule against both the newel and the edge — "squeezing through a
+cutout"). The _coordinate-driven_ half — which rooms are live, when the `CollisionContext`
+is rebuilt, how the frame re-bases — is [`traversal-doctrine.md`](./traversal-doctrine.md).
 
 ## 6. Gotchas (symptom → cause → fix)
 
@@ -94,15 +105,20 @@ math outgrows the analytic model, **that** unit renegotiates with evidence.
   truth is _not_ testable there (E5): node tests cover pure logic (instancing,
   collision, locomotion step), jsdom covers mount/overlay DOM only, and everything
   visual is judged by the mood-gate ritual.
-- **The doorway to "the next room" leads nowhere** → intended. Side 0 is blocked by an
-  invisible collider + black void volume; side 3's vestibule far end likewise.
-  Unit 04 owns inter-room streaming, stair walkability, and the shaft parallax fake.
-  Don't "fix" the blockers.
+- **The doorway to "the next room" leads nowhere** → only true at the ±64 EDGE now.
+  Unit 04 shipped inter-room streaming, stair walkability, and the shaft parallax fake:
+  interior doorways connect for real (the passage is the neighbor's entrance throat in
+  the `CollisionContext`), and the Unit 03 invisible blocker + void volume survive ONLY
+  on edge rooms' outward sides (n = −64 entrance, n = +64 far door). If an interior
+  doorway dead-ends, the neighbor is missing from the collision context — see
+  [`traversal-doctrine.md`](./traversal-doctrine.md), not a blocker to remove.
 
 ## 7. Pointers
 
 - `docs/tasks/completed/03-world-render/03-world-render-spec.md` — the spec that froze
   these seams (§4 architecture, §5 invariants INV-R1..R10).
+- [`traversal-doctrine.md`](./traversal-doctrine.md) — the coordinate-driven world that
+  streams these rooms, rebuilds the collision context, and re-bases the frame on commit.
 - [`audio-doctrine.md`](./audio-doctrine.md) — the bus the camera's listener pose drives.
 - [`mood-gate-doctrine.md`](./mood-gate-doctrine.md) — the acceptance ritual + regression
   protocol for anything that touches light, fog, or materials.

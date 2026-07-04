@@ -44,11 +44,13 @@ Unit 06's business):
 - **The hush** — looped seeded brown-ish noise (xorshift32, seed `0xbabe1` — never
   `Math.random`, C4) → lowpass ≈ 220 Hz → slow gain LFO, on an `ambient` emitter.
   Gain is deliberately near-threshold: _felt, not heard_.
-- **Bulb hums** — 120 Hz sine + faint 240 Hz harmonic on a `positional` emitter at
-  **each entry of `BULB_POSITIONS`** (`render/room/Bulbs.tsx`). This coupling is
-  intentional: add a bulb to the scene and it hums automatically; light and its sound
-  never desynchronize. It also means the positional path is genuinely exercised, not
-  shipped untested until a later unit needs it under gate pressure.
+- **Bulb hums** — 120 Hz sine + faint 240 Hz harmonic on a `positional` emitter per
+  bulb. The bulb↔hum coupling is intentional (add a bulb, it hums; light and its sound
+  never desynchronize). **As of Unit 04 the hums live in `src/presentation/audio/room-hums.ts`,
+  not `ambient.ts`** — they follow the room _streaming_ lifecycle 1:1 (KDD-5), so the
+  origin room's hums now arrive through the streaming path like every other room's. The
+  **hush stays app-lifetime** in `ambient.ts`; only it remains here. See §4 + the
+  streaming lifecycle in [`traversal-doctrine.md`](./traversal-doctrine.md).
 
 ## 4. Lifecycle & browser policy (where the silence bugs live)
 
@@ -74,9 +76,31 @@ Symptom → cause → fix:
 - **A positional emitter doesn't attenuate/pan** → listener pose isn't being driven
   (camera hookup in `WorldScene`), or the emitter was created `ambient`. `setPosition`
   is a no-op on ambient emitters by contract.
-- **Sounds too quiet to verify** → intended mix: `HUSH_GAIN`/`HUM_GAIN` in
-  `ambient.ts` sit near the threshold of hearing. Tune there, not at the master gain
-  (the master is the future user volume control).
+- **Sounds too quiet to verify** → intended mix: `HUSH_GAIN` in `ambient.ts` /
+  `HUM_GAIN` in `room-hums.ts` sit near the threshold of hearing. Tune there, not at the
+  master gain (the master is the future user volume control).
+
+### 4.1 Emitters under streaming (Unit 04)
+
+Footsteps, per-room hums, and the shaft drone are **just more emitters on the frozen bus** —
+zero changes to `audio-bus.ts`. What's new is _lifecycle_, and it rides the coordinate-driven
+world (the re-base + set-change details are [`traversal-doctrine.md`](./traversal-doctrine.md);
+here are the audio-side rules):
+
+- **Per-room hums** (`room-hums.ts`, `startRoomHums`) — one positional emitter + hum source
+  per bulb, per _live_ room. `RoomStream` keeps a `Map<roomKey, RoomHumsHandle>`: **create on
+  room-enter, `dispose()` on room-leave, `reposition()` on re-base — in the same frame** as the
+  geometry + listener. Rooms streaming back in build **fresh** source graphs: `OscillatorNode`/
+  `BufferSource` are one-shot and cannot restart after `stop()`.
+- **Footsteps** (`footsteps.ts`) — ONE `ambient`-kind emitter (feet are head-locked; a panner is
+  wrong). `LocomotionController` fires `step(surface)` on a stride-distance cadence; buffers are
+  seeded xorshift32 (C4), precomputed once.
+- **Shaft drone** (`shaft-drone.ts`) — one positional emitter at the current vestibule's shaft
+  axis; follows the current room only (user-approved, cut-able at the mood gate).
+
+Lifecycle MUSTs (spec-binding): streaming/traversal code disposes **emitters only** — **never**
+`bus.dispose()` (that closes the context, §4); **never** create a new `AudioContext`; the
+create-in-body / dispose-in-cleanup rule (§4) holds per room; emitter `dispose()` is idempotent.
 
 ## 5. Pointers
 
@@ -84,3 +108,5 @@ Symptom → cause → fix:
   bus API and the procedural-ambient decision record.
 - [`render-doctrine.md`](./render-doctrine.md) — `BULB_POSITIONS` freeze, deterministic
   presentation (C4), and the entry-gesture seam shared with pointer lock.
+- [`traversal-doctrine.md`](./traversal-doctrine.md) — the streaming lifecycle the per-room
+  hums / footsteps / shaft drone ride, and the same-frame re-base contract (KDD-5).
