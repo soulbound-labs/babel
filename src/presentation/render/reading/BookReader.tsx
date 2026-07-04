@@ -58,6 +58,7 @@ import {
   READING_FONT_URL,
 } from './atlas';
 import type { PageAddress } from './book-address';
+import { toRoman } from './folio';
 import { openPage } from './page-content';
 import { createPageUniforms, patchPageMaterial } from './page-shader';
 import { SPREAD_LINES } from './reveal';
@@ -88,6 +89,10 @@ const COVER_THICKNESS = 0.006;
 const COVER_OVERHANG = 0.008;
 /** Standing-on-slab tolerance — same gate as useBookPick (§4.3). */
 const FLOOR_EPSILON = 0.02;
+/** Folios read as small furniture, not body type. */
+const FOLIO_FONT_SIZE = GLYPH_FONT_SIZE * 0.8;
+/** Baseline of the folios: one margin up from the bottom edge. */
+const FOLIO_Y = -PAGE_FACE_HEIGHT / 2 + PAGE_TEXT_MARGIN;
 /** Leather like the shelf pool's dark tones — plain; Unit 06 owns richer bindings. */
 const coverMaterial = new MeshStandardMaterial({ color: '#231710', roughness: 0.9 });
 
@@ -193,7 +198,16 @@ export function BookReader({ handleRef, audioBus, audioCtx, pinned }: BookReader
     glyphLeft.uRevealFront = page.uRevealFront;
     glyphRight.uTurnProgress = page.uTurnProgress;
     glyphRight.uRevealFront = page.uRevealFront;
-    return { page, glyphLeft, glyphRight };
+    // Right-leaf folio: bends with the turning leaf (shares uTurnProgress) but
+    // never reveals — its spine axis sits at the OUTER edge, so uXOffset places
+    // the anchorX="right" folio's distance-from-spine correctly (turn.ts:
+    // r = pos.x + uXOffset).
+    const folio = createPageUniforms({
+      uPageWidth: PAGE_FACE_WIDTH,
+      uXOffset: PAGE_FACE_WIDTH - PAGE_TEXT_MARGIN,
+    });
+    folio.uTurnProgress = page.uTurnProgress;
+    return { page, glyphLeft, glyphRight, folio };
   }, []);
 
   const materials = useMemo(() => {
@@ -207,7 +221,12 @@ export function BookReader({ handleRef, audioBus, audioCtx, pinned }: BookReader
     patchPageMaterial(leftGlyphs, uniforms.glyphLeft, { bend: false, reveal: true });
     const rightGlyphs = createGlyphMaterial();
     patchPageMaterial(rightGlyphs, uniforms.glyphRight, { bend: true, reveal: true });
-    return { leftVellum, rightVellum, leftGlyphs, rightGlyphs };
+    // Folios: always visible (reveal off). Left leaf is flat; the right rides
+    // the turning leaf's bend.
+    const leftFolio = createGlyphMaterial();
+    const rightFolio = createGlyphMaterial();
+    patchPageMaterial(rightFolio, uniforms.folio, { bend: true, reveal: false });
+    return { leftVellum, rightVellum, leftGlyphs, rightGlyphs, leftFolio, rightFolio };
   }, [uniforms]);
 
   /** KDD-7: hide the pulled shelf instance without touching neighbours. */
@@ -481,6 +500,14 @@ export function BookReader({ handleRef, audioBus, audioCtx, pinned }: BookReader
       .join('\n');
   }, [display]);
 
+  // Folios: 1-based roman numerals at the bottom-outer corners. The right folio
+  // is blank whenever its leaf is (same guard as rightPageText).
+  const leftFolioText = useMemo(() => (display === null ? '' : toRoman(display.page + 1)), [display]);
+  const rightFolioText = useMemo(
+    () => (display === null || display.page + 1 >= BOOK_PAGES ? '' : toRoman(display.page + 2)),
+    [display],
+  );
+
   const closedScale = useMemo(() => {
     const slot =
       pinned !== undefined
@@ -546,6 +573,31 @@ export function BookReader({ handleRef, audioBus, audioCtx, pinned }: BookReader
               position={[PAGE_TEXT_MARGIN, PAGE_FACE_HEIGHT / 2 - PAGE_TEXT_MARGIN, 0.0015]}
             >
               {rightPageText}
+            </Text>
+            {/* Left folio: bottom-left (outer) corner of the flat left leaf. */}
+            <Text
+              font={READING_FONT_URL}
+              fontSize={FOLIO_FONT_SIZE}
+              anchorX="left"
+              anchorY="bottom"
+              whiteSpace="nowrap"
+              material={materials.leftFolio}
+              position={[-PAGE_FACE_WIDTH + PAGE_TEXT_MARGIN, FOLIO_Y, 0.0015]}
+            >
+              {leftFolioText}
+            </Text>
+            {/* Right folio: bottom-right (outer) corner; rides the turning leaf's
+                bend, anchored to the outer edge (uXOffset = outer edge). */}
+            <Text
+              font={READING_FONT_URL}
+              fontSize={FOLIO_FONT_SIZE}
+              anchorX="right"
+              anchorY="bottom"
+              whiteSpace="nowrap"
+              material={materials.rightFolio}
+              position={[PAGE_FACE_WIDTH - PAGE_TEXT_MARGIN, FOLIO_Y, 0.0015]}
+            >
+              {rightFolioText}
             </Text>
           </group>
         </group>
