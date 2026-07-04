@@ -38,7 +38,11 @@ Cross-layer imports inside `src/` are **relative**; tests may use `@/`.
 The slot mapping nests exactly like the domain codec:
 `slot = (wall * 5 + shelf) * 32 + volume`, slots `0..639`, out-of-range throws.
 Unit 05 resolves clicks as `raycast → instanceId → slotToBook(instanceId)` — renumbering
-slots silently rewires which book every click opens.
+slots silently rewires which book every click opens. Since Unit 04, books ship as
+**eleven per-room 640-instance meshes** (`world/RoomStream.tsx`): `instanceId === slot`
+holds _per mesh_, and **room identity = which mesh the ray hit** (its parent group's
+`userData` carries `roomKey`/`coordinate`) — target "the current room's book mesh"
+explicitly; a doorway raycast can legally hit a neighbor's books.
 
 **One camera, one owner.** The locomotion controller owns the only camera.
 Unit 05 reads books in place through `suspend()` (camera yielded to the caller) and
@@ -62,7 +66,9 @@ slot; the audio noise buffer is seeded xorshift32. Consequences:
 Worst device in scope: **mid iGPU (Apple M1 / Iris Xe class), 60 fps target, < 30 fps
 is failure**. Enforcers, checked at the `?debug` HUD (`render/debug/DebugStats.tsx`):
 
-- **≤ 30 draw calls total**; all 640 books are **ONE `InstancedMesh`**; shelf boards
+- **≤ 30 draw calls total**; each room's 640 books are **ONE `InstancedMesh`** (eleven
+  per-room meshes across the working set — the Unit 05 room-identity seam; ~20 calls
+  interior, 21 at an edge, ledger in `docs/mood/unit-04/checklist.md`); shelf boards
   merged; shared material singletons in `room/materials.ts` keep the program count tiny.
 - `devicePixelRatio` clamped **≤ 1.5** in `WorldScene.tsx`.
 - **No shadow maps, no post-processing** — darkness does the occlusion; `FogExp2` +
@@ -99,10 +105,13 @@ is rebuilt, how the frame re-bases — is [`traversal-doctrine.md`](./traversal-
   truth is _not_ testable there (E5): node tests cover pure logic (instancing,
   collision, locomotion step), jsdom covers mount/overlay DOM only, and everything
   visual is judged by the mood-gate ritual.
-- **The doorway to "the next room" leads nowhere** → intended. Side 0 is blocked by an
-  invisible collider + black void volume; side 3's vestibule far end likewise.
-  Unit 04 owns inter-room streaming, stair walkability, and the shaft parallax fake.
-  Don't "fix" the blockers.
+- **The doorway to "the next room" leads nowhere** → only true at the ±64 EDGE now.
+  Unit 04 shipped inter-room streaming, stair walkability, and the shaft parallax fake:
+  interior doorways connect for real (the passage is the neighbor's entrance throat in
+  the `CollisionContext`), and the Unit 03 invisible blocker + void volume survive ONLY
+  on edge rooms' outward sides (n = −64 entrance, n = +64 far door). If an interior
+  doorway dead-ends, the neighbor is missing from the collision context — see
+  [`traversal-doctrine.md`](./traversal-doctrine.md), not a blocker to remove.
 
 ## 7. Pointers
 
