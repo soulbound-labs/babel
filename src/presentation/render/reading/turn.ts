@@ -32,20 +32,23 @@ export function curlAt(progress: number): number {
 }
 
 /**
- * The vertex bend chunk (§4.4). Page-local frame: spine at x = 0, the free
- * edge at x = uPageWidth; the page lies in the XY plane facing +z. Vertices
- * rotate about the spine axis by the base angle plus a curl that grows toward
- * the free edge — the same function `turnAngleAt`/`curlAt` express in JS.
+ * The vertex bend chunk (§4.4). Page-local frame: spine at x = -uXOffset, the
+ * free edge at spine-distance uPageWidth; the page lies in the XY plane facing
+ * +z. `uXOffset` lets the glyph mesh (positioned at the text margin) share the
+ * page mesh's spine axis: spine distance r = pos.x + uXOffset. Vertices rotate
+ * about the spine by the base angle plus a curl that grows toward the free
+ * edge — the same function `turnAngleAt`/`curlAt` express in JS.
  */
 export const PAGE_BEND_GLSL = /* glsl */ `
 uniform float uTurnProgress;
 uniform float uPageWidth;
+uniform float uXOffset;
 
 vec3 babelBendPage(vec3 pos) {
-  float r = pos.x;
+  float r = pos.x + uXOffset;
   float edge = clamp(r / uPageWidth, 0.0, 1.0);
   float theta = 3.14159265 * uTurnProgress
     + ${TURN_CURL.toFixed(4)} * sin(3.14159265 * uTurnProgress) * edge;
-  return vec3(r * cos(theta), pos.y, pos.z + r * sin(theta));
+  return vec3(r * cos(theta) - uXOffset, pos.y, pos.z + r * sin(theta));
 }
 `;
