@@ -79,11 +79,11 @@ describe('camera poses (§4.4)', () => {
     }
   });
 
-  it('P9–P12 phases: approach 0.5 / 60 of 80 / turnProgress 0.5 / fully resolved', () => {
+  it('P9–P12 phases: approach 0.5 / 20 of 40 / turnProgress 0.5 / fully resolved', () => {
     expect(POSES[8]?.book?.phase).toEqual({ approach: 0.5 });
-    expect(POSES[9]?.book?.phase).toEqual({ revealedLines: 60 });
-    expect(POSES[10]?.book?.phase).toEqual({ revealedLines: 80, turnProgress: 0.5 });
-    expect(POSES[11]?.book?.phase).toEqual({ revealedLines: 80 });
+    expect(POSES[9]?.book?.phase).toEqual({ revealedLines: 20 });
+    expect(POSES[10]?.book?.phase).toEqual({ revealedLines: 40, turnProgress: 0.5 });
+    expect(POSES[11]?.book?.phase).toEqual({ revealedLines: 40 });
   });
 
   it('P7 sits near the n = 64 edge (edge − ramp/2 = 62), inside the walkable bound', () => {

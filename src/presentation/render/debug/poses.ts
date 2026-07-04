@@ -129,21 +129,21 @@ export const POSES: readonly CameraPose[] = [
     coordinate: { n: 0n, floor: 0n },
     book: { address: GOLDEN_BOOK, phase: { approach: 0.5 } },
   },
-  // P10 P-stream — spread open, left leaf fully resolved and the stream
-  //     continuing onto the right (60 of 80: right leaf 20/40, rest blank).
+  // P10 P-stream — spread open mid-stream: both leaves stream in parallel,
+  //     each half-resolved (20 of 40 — the shared front, rest blank).
   {
     ...READING_STANCE,
-    book: { address: GOLDEN_BOOK, phase: { revealedLines: 60 } },
+    book: { address: GOLDEN_BOOK, phase: { revealedLines: 20 } },
   },
   // P11 P-turn — both leaves resolved, spine-pivot bend at turnProgress = 0.5.
   {
     ...READING_STANCE,
-    book: { address: GOLDEN_BOOK, phase: { revealedLines: 80, turnProgress: 0.5 } },
+    book: { address: GOLDEN_BOOK, phase: { revealedLines: 40, turnProgress: 0.5 } },
   },
-  // P12 P-resolved — all 80 lines (both leaves) resolved, book at rest.
+  // P12 P-resolved — all 40 lines of BOTH leaves resolved, book at rest.
   {
     ...READING_STANCE,
-    book: { address: GOLDEN_BOOK, phase: { revealedLines: 80 } },
+    book: { address: GOLDEN_BOOK, phase: { revealedLines: 40 } },
   },
 ];
 

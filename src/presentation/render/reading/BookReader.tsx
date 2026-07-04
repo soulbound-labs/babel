@@ -3,8 +3,9 @@
  * reticle pick → `suspend()` → the BOOK eases from its shelf transform to the
  * reading pose in front of the HELD camera (never a second camera, never a
  * scripted camera path — KDD-1) → it opens → glyphs stream line-by-line as a
- * reveal-front uniform over the memoized page buffer (KDD-4) → pages turn as
- * a spine-pivot vertex bend the glyphs ride (KDD-5) → close removes the mesh
+ * reveal-front uniform over the memoized page buffer, both leaves in parallel
+ * (KDD-4) → pages turn as a spine-pivot vertex bend the glyphs ride, refused
+ * until the stream completes (§4.4) → close removes the mesh
  * and `resume()` reads back the identical pose (no phantom commit, INV-B6).
  *
  * The opened book is a SEPARATE small mesh group; the shelf instance it came
@@ -44,7 +45,6 @@ import {
   EYE_HEIGHT,
   PAGE_FACE_HEIGHT,
   PAGE_FACE_WIDTH,
-  PAGE_LINES,
   PAGE_TEXT_MARGIN,
   READ_DISTANCE,
   READ_HEIGHT_OFFSET,
@@ -65,7 +65,7 @@ import type { PageAddress } from './book-address';
 import { toRoman } from './folio';
 import { openPage } from './page-content';
 import { createPageUniforms, patchPageMaterial } from './page-shader';
-import { SPREAD_LINES } from './reveal';
+import { REVEAL_LINES } from './reveal';
 import {
   acknowledgeIntent,
   advance,
@@ -95,8 +95,12 @@ const COVER_OVERHANG = 0.008;
 const FLOOR_EPSILON = 0.02;
 /** Folios read as small furniture, not body type. */
 const FOLIO_FONT_SIZE = GLYPH_FONT_SIZE * 0.8;
-/** Baseline of the folios: one margin up from the bottom edge. */
-const FOLIO_Y = -PAGE_FACE_HEIGHT / 2 + PAGE_TEXT_MARGIN;
+/**
+ * Folio bottom edge: the 40-line glyph block ends exactly one margin above the
+ * page's bottom edge, so the folio drops INTO the bottom vellum margin —
+ * vertically centred in that band, clear of the last line of body text.
+ */
+const FOLIO_Y = -PAGE_FACE_HEIGHT / 2 + (PAGE_TEXT_MARGIN - FOLIO_FONT_SIZE) / 2;
 /** Leather like the shelf pool's dark tones — plain; Unit 06 owns richer bindings. */
 const coverMaterial = new MeshStandardMaterial({ color: '#231710', roughness: 0.9 });
 
@@ -187,13 +191,13 @@ export function BookReader({
     [],
   );
 
-  // Both glyph blocks SHARE the one driven reveal front (uRevealFront, 0..80):
-  // the front sweeps the left leaf (uLineStart 0 ⇒ global lines 0..39) then
-  // CONTINUES onto the right leaf (uLineStart 40 ⇒ 40..79). The right block also
-  // shares the page's uTurnProgress so the type rides the curl of the turning
-  // leaf (KDD-5); the left leaf is flat, so it neither bends nor needs it. Glyph
-  // local x = 0 sits PAGE_TEXT_MARGIN from each leaf's spine (uXOffset), so the
-  // bend axis lines up with the vellum.
+  // Both glyph blocks SHARE the one driven reveal front (uRevealFront, 0..40)
+  // AND the same uLineStart of 0: the front sweeps BOTH leaves in parallel —
+  // line k resolves on the left and the right page together. The right block
+  // also shares the page's uTurnProgress so the type rides the curl of the
+  // turning leaf (KDD-5); the left leaf is flat, so it neither bends nor needs
+  // it. Glyph local x = 0 sits PAGE_TEXT_MARGIN from each leaf's spine
+  // (uXOffset), so the bend axis lines up with the vellum.
   const uniforms = useMemo(() => {
     const page = createPageUniforms({
       uPageWidth: PAGE_FACE_WIDTH,
@@ -205,14 +209,14 @@ export function BookReader({
       uPageWidth: PAGE_FACE_WIDTH,
       uLinePitch: READ_LINE_PITCH,
       uLineTop: 0, // anchorY 'top' ⇒ glyph local y = 0 at the first line
-      uLineStart: 0, // left leaf → global lines 0..39
+      uLineStart: 0, // both leaves stream the shared front's lines 0..39
     });
     const glyphRight = createPageUniforms({
       uPageWidth: PAGE_FACE_WIDTH,
       uLinePitch: READ_LINE_PITCH,
       uXOffset: PAGE_TEXT_MARGIN,
       uLineTop: 0,
-      uLineStart: PAGE_LINES, // right leaf → global lines 40..79
+      uLineStart: 0, // in parallel with the left leaf, not after it
     });
     glyphLeft.uRevealFront = page.uRevealFront;
     glyphRight.uTurnProgress = page.uTurnProgress;
@@ -464,7 +468,7 @@ export function BookReader({
       if (openGroupRef.current) openGroupRef.current.visible = !approachingPinned;
       uniforms.page.uRevealFront.value = approachingPinned
         ? 0
-        : (pinned.phase.revealedLines ?? SPREAD_LINES);
+        : (pinned.phase.revealedLines ?? REVEAL_LINES);
       uniforms.page.uTurnProgress.value = pinned.phase.turnProgress ?? 0;
       return;
     }

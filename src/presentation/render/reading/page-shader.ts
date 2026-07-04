@@ -32,7 +32,7 @@ export type PageUniforms = {
   uRevealFront: { value: number };
   uLineTop: { value: number };
   uLinePitch: { value: number };
-  /** This block's first global line index — 0 (left leaf) or 40 (right leaf). */
+  /** This block's first line index in the front's domain — 0 for BOTH leaves (they stream in parallel). */
   uLineStart: { value: number };
 };
 
