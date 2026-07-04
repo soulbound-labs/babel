@@ -39,6 +39,7 @@ export const POSE_PITCH_MAX = (80 * Math.PI) / 180;
 // mood KNOB is the reading glow (defaults below, module: reading/reading-light.ts).
 export const PAGE_LINES = 40; // Borges page format — pinned to the core codec by INV-B9
 export const PAGE_COLS = 80; // pinned to the core codec by INV-B9
+export const BOOK_PAGES = 410; // pages per volume (Borges constant, mirrors the core codec)
 export const READ_LINES_PER_SECOND = 8; // locked cadence — a full page resolves in 5.0 s
 export const READ_TURN_SECONDS = 0.9; // spine-pivot page turn, lift → settle
 export const READ_APPROACH_SECONDS = 1.1; // shelf → reading-rest ease (monotonic, no snap)
