@@ -683,4 +683,15 @@ pnpm dev   # open ?debug, open a book at an edge room, read draw calls
 
 ---
 
+### Post-execution notes
+
+Executed 2026-07-04 on `feat/05-book-reading` (`db722a1..d1b2a65`), agent-autonomous per operator direction. Deviations from the prescribed steps:
+
+1. **Browser-verification steps deferred to the gate owner** (operator-directed: no agent browser automation). Steps 1.1 (P1–P4 byte-compare), 6.3 (determinism smoke), 6.4 (`pose-{9..12}.png` captures), 7.2 (HUD numbers), and 7.3 (chills-gate) are recorded as pending-Rei in `docs/mood/unit-05/{baseline,checklist}.md` — the Unit 04 precedent. Step 6.4's `test -f pose-*.png` verify lines are therefore unsatisfied by design; tracked by bead `babel-t2yu`.
+2. **Phases 4 and 7 produced no dedicated commits.** Their behaviors (turn/stream driving; composition-site wiring) landed inside the Phase 3/5/6 commits because the state machine + `useFrame` loop are one unit; every phase gate still ran in order and passed. Six phase commits instead of eight.
+3. **Vendored asset not in the spec:** `public/fonts/reading-glyphs.woff` (Courier Prime subset, 29 glyphs, OFL, 3.2 KB) — troika otherwise fetches its default font from a CDN, breaking offline determinism. Provenance + regeneration in `public/fonts/README.md`; policy question queued as amendment A4.
+4. **KDD-9 outcome:** no direct `troika-three-text` dependency was needed at compile/build time (single `0.52.4` copy via drei confirmed). Live verification of the `onBeforeCompile` injection into the derived glyph material is open — bead `babel-log8` carries the break-glass.
+5. **Architect-default choices within spec latitude**, recorded as reviewable in `docs/mood/unit-05/checklist.md` §5: blank-vellum left page (single streamed face), input scheme (click/right-click/E), retreated pages re-open fully revealed, closed→open swap at approach arrival (no cover-board animation).
+6. **Archive deferred:** this folder moves to `docs/tasks/completed/` when the chills-gate closes (same convention as Unit 04). Doctrine amendments A1–A6 queued in `docs/tasks/ongoing/doctrine-updates/05-book-reading-amendments.md`.
+
 <!-- Spec authored by /substrate:architect-spec — render · traversal · audio · mood-gate · content · tooling architects, orchestrated at skill level. Execute in a fresh session via /substrate:execute. -->
