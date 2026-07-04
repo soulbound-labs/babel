@@ -39,8 +39,9 @@ const BANDS: Record<FootstepSurface, SurfaceBand> = {
   stair: { centerHz: 1150, q: 0.9, decay: 0.06, baseRate: 1.18, seed: 0x57a175 },
 };
 
-/** Advances an xorshift32 state; returns the new state and a unit float in [0, 1). */
-function xorshift32(state: number): { state: number; unit: number } {
+/** Advances an xorshift32 state; returns the new state and a unit float in [0, 1).
+ * Shared PRNG helper (C4) — page-rustle (Unit 05) reuses it for its buffers. */
+export function xorshift32(state: number): { state: number; unit: number } {
   let s = state | 0;
   s ^= s << 13;
   s ^= s >>> 17;

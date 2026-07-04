@@ -69,9 +69,12 @@ import {
   tick,
   turnProgressOf,
 } from './reader-state';
-import type { ReaderState, SurfaceModeLike } from './reader-state';
+import type { ReaderEvent, ReaderState, SurfaceModeLike } from './reader-state';
 import { useBookPick } from './useBookPick';
 import type { BookPick } from './useBookPick';
+import type { AudioBus } from '../../audio/audio-bus';
+import { startPageRustle } from '../../audio/page-rustle';
+import type { PageRustleHandle } from '../../audio/page-rustle';
 
 const COVER_THICKNESS = 0.006;
 const COVER_OVERHANG = 0.008;
@@ -116,9 +119,13 @@ type EndpointPose = { position: Vector3; quaternion: Quaternion };
 export type BookReaderProps = {
   /** The ONE frozen camera seam, shared with LocomotionController (§4.7). */
   handleRef: RefObject<LocomotionHandle | null>;
+  /** The Unit 03 bus — page rustle is "just more emitters" (§4.5). */
+  audioBus?: AudioBus;
+  /** The shared app-lifetime context; absent in CI/jsdom — rustle skipped. */
+  audioCtx?: BaseAudioContext;
 };
 
-export function BookReader({ handleRef }: BookReaderProps) {
+export function BookReader({ handleRef, audioBus, audioCtx }: BookReaderProps) {
   const camera = useThree((s) => s.camera);
 
   const machineRef = useRef<ReaderState>(CLOSED_READER);
@@ -261,17 +268,46 @@ export function BookReader({ handleRef }: BookReaderProps) {
     onPick,
   });
 
+  // --- Page rustle (§4.5): ONE positional emitter per reading session ---
+  // Create-in-body / dispose-in-cleanup; keyed on the open/close transition
+  // only (never per page turn). The ambient bed continues underneath and
+  // WorldScene keeps driving setListenerPose from the held camera.
+  const rustleRef = useRef<PageRustleHandle | null>(null);
+  const readingOpen = display !== null;
+  useEffect(() => {
+    if (!readingOpen || !audioBus || !audioCtx) return;
+    const at = travelRef.current?.end.position;
+    const handle = startPageRustle(audioBus, audioCtx, {
+      x: at?.x ?? 0,
+      y: at?.y ?? 0,
+      z: at?.z ?? 0,
+    });
+    rustleRef.current = handle;
+    return () => {
+      handle.dispose(); // idempotent — StrictMode double-mount safe
+      rustleRef.current = null;
+    };
+  }, [readingOpen, audioBus, audioCtx]);
+
+  const fireRustle = useCallback((events: ReaderEvent[], pageIndex: number) => {
+    for (const event of events) {
+      rustleRef.current?.rustle(event === 'turn-lift' ? 'lift' : 'settle', pageIndex);
+    }
+  }, []);
+
   // Reading-mode input (attached only while a book is up).
   useEffect(() => {
     if (display === null) return;
     const onPointerDown = (event: PointerEvent) => {
       if (document.pointerLockElement === null) return;
       if (event.button === 0) {
-        const { state } = advance(machineRef.current);
+        const { state, events } = advance(machineRef.current);
         machineRef.current = state;
+        fireRustle(events, state.address?.page ?? 0);
       } else if (event.button === 2) {
-        const { state } = retreat(machineRef.current);
+        const { state, events } = retreat(machineRef.current);
         machineRef.current = state;
+        fireRustle(events, state.address?.page ?? 0);
       }
     };
     const onContextMenu = (event: Event) => event.preventDefault();
@@ -286,13 +322,20 @@ export function BookReader({ handleRef }: BookReaderProps) {
       document.removeEventListener('contextmenu', onContextMenu);
       document.removeEventListener('keydown', onKeyDown);
     };
-  }, [display, closeReader]);
+  }, [display, closeReader, fireRustle]);
 
   useFrame((_, delta) => {
     const before = machineRef.current;
     if (before.status === 'closed') return;
-    const { state } = tick(before, delta);
+    const { state, events } = tick(before, delta);
     machineRef.current = state;
+    fireRustle(events, state.address?.page ?? 0);
+
+    // Arrived at the reading rest: pin the session emitter to the settled pose.
+    if (before.status === 'approaching' && state.status === 'open') {
+      const at = travelRef.current?.end.position;
+      if (at) rustleRef.current?.reposition({ x: at.x, y: at.y, z: at.z });
+    }
 
     // Page settle → recompute content (the ONLY content trigger besides open).
     if (state.address !== null && display !== null && state.address.page !== display.page) {

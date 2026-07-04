@@ -104,7 +104,7 @@ export function WorldScene({ locomotionRef, audioBus, audioCtx, footsteps }: Wor
         audioBus={audioBus}
         audioCtx={audioCtx}
       />
-      <BookReader handleRef={readerHandleRef} />
+      <BookReader handleRef={readerHandleRef} audioBus={audioBus} audioCtx={audioCtx} />
     </Canvas>
   );
 }
