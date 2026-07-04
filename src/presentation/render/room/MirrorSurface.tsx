@@ -12,12 +12,22 @@ export type MirrorSurfaceProps = {
   rotationY?: number;
   /** Unit 06's render-target texture — mapped when present. */
   reflection?: Texture;
+  /** Plane size — additive props; default to the frozen hero-pair dimensions.
+   * InfinityMirrors passes full-wall spans so placeholders match the live pair. */
+  width?: number;
+  height?: number;
 };
 
-export function MirrorSurface({ position, rotationY = 0, reflection }: MirrorSurfaceProps) {
+export function MirrorSurface({
+  position,
+  rotationY = 0,
+  reflection,
+  width = MIRROR_WIDTH,
+  height = MIRROR_HEIGHT,
+}: MirrorSurfaceProps) {
   return (
     <mesh position={position} rotation={[0, rotationY, 0]}>
-      <planeGeometry args={[MIRROR_WIDTH, MIRROR_HEIGHT]} />
+      <planeGeometry args={[width, height]} />
       <meshStandardMaterial
         color="#2b2d38"
         roughness={0.05}

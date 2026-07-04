@@ -26,22 +26,31 @@ import type { Group } from 'three';
 import { PlaneGeometry, Vector3 } from 'three';
 import { Reflector } from 'three/addons/objects/Reflector.js';
 
-import { ALCOVE_BACK_X } from '../player/stair';
-import { HEX_APOTHEM, MIRROR_HEIGHT, MIRROR_WIDTH, VESTIBULE_WIDTH } from './dimensions';
+import { ALCOVE_BACK_X, ALCOVE_NEAR_Z } from '../player/stair';
+import { CEILING_HEIGHT, HEX_APOTHEM, VESTIBULE_DEPTH, VESTIBULE_WIDTH } from './dimensions';
 import { MirrorSurface } from './MirrorSurface';
 
-/** Right-flank mirror, local to the room origin — the frozen Unit 03 placement. */
+const NEAR_Z = -HEX_APOTHEM;
+const FAR_Z = -(HEX_APOTHEM + VESTIBULE_DEPTH);
+
+/**
+ * Full-wall panes — floor to ceiling, the entire wall span: the glass IS the
+ * wall, so no sightline slips above or past it (the sealing pass' complement).
+ * The right pane covers the whole +x flank (subsuming the old closet recess);
+ * the left pane covers the whole alcove back wall.
+ */
 export const MIRROR_RIGHT: [number, number, number] = [
   VESTIBULE_WIDTH / 2 - 0.02,
-  MIRROR_HEIGHT / 2 + 0.3,
-  -(HEX_APOTHEM + 1.8),
+  CEILING_HEIGHT / 2,
+  (NEAR_Z + FAR_Z) / 2,
 ];
-/** The twin on the stair-alcove back wall, directly facing MIRROR_RIGHT. */
+export const MIRROR_RIGHT_SIZE: [number, number] = [VESTIBULE_DEPTH, CEILING_HEIGHT];
 export const MIRROR_LEFT: [number, number, number] = [
   ALCOVE_BACK_X + 0.02,
-  MIRROR_HEIGHT / 2 + 0.3,
-  -(HEX_APOTHEM + 1.8),
+  CEILING_HEIGHT / 2,
+  (ALCOVE_NEAR_Z + FAR_Z) / 2,
 ];
+export const MIRROR_LEFT_SIZE: [number, number] = [ALCOVE_NEAR_Z - FAR_Z, CEILING_HEIGHT];
 /** Live-reflection gate, meters from the pair's midpoint. 4.0 keeps the room
  * center live (the pair is visible through the side-3 door) while every
  * committed hexagon-interior pose (P1–P3, spawn) stays on the placeholder path. */
@@ -62,9 +71,8 @@ export function InfinityMirrors({ live = false }: InfinityMirrorsProps) {
 
   const reflectors = useMemo(() => {
     if (!live) return null;
-    const geometry = new PlaneGeometry(MIRROR_WIDTH, MIRROR_HEIGHT);
-    const make = () => {
-      const r = new Reflector(geometry, {
+    const make = (size: [number, number]) => {
+      const r = new Reflector(new PlaneGeometry(size[0], size[1]), {
         clipBias: 0.003,
         textureWidth: RESOLUTION,
         textureHeight: RESOLUTION,
@@ -73,15 +81,16 @@ export function InfinityMirrors({ live = false }: InfinityMirrorsProps) {
       r.visible = false; // useFrame drives visibility before the first render
       return r;
     };
-    return { geometry, right: make(), left: make() };
+    return { right: make(MIRROR_RIGHT_SIZE), left: make(MIRROR_LEFT_SIZE) };
   }, [live]);
 
   useEffect(() => {
     if (!reflectors) return;
     return () => {
-      reflectors.right.dispose();
-      reflectors.left.dispose();
-      reflectors.geometry.dispose();
+      for (const r of [reflectors.right, reflectors.left]) {
+        r.dispose();
+        r.geometry.dispose();
+      }
     };
   }, [reflectors]);
 
@@ -103,8 +112,18 @@ export function InfinityMirrors({ live = false }: InfinityMirrorsProps) {
   return (
     <group>
       <group ref={fallbackRef}>
-        <MirrorSurface position={MIRROR_RIGHT} rotationY={-Math.PI / 2} />
-        <MirrorSurface position={MIRROR_LEFT} rotationY={Math.PI / 2} />
+        <MirrorSurface
+          position={MIRROR_RIGHT}
+          rotationY={-Math.PI / 2}
+          width={MIRROR_RIGHT_SIZE[0]}
+          height={MIRROR_RIGHT_SIZE[1]}
+        />
+        <MirrorSurface
+          position={MIRROR_LEFT}
+          rotationY={Math.PI / 2}
+          width={MIRROR_LEFT_SIZE[0]}
+          height={MIRROR_LEFT_SIZE[1]}
+        />
       </group>
       {reflectors && (
         <>

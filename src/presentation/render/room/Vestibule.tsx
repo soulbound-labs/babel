@@ -63,48 +63,119 @@ function slabWithStairwell(zToShapeY: (z: number) => number): Shape {
   return shape;
 }
 
+/**
+ * A wall plane emitted TWICE — inward and outward faces at the same spot.
+ * Stone is FrontSide: a lone plane is a phantom from its back side, and since
+ * Unit 04 streamed lit neighbors, a phantom vestibule wall reads as "seeing
+ * into the world beyond" (the sealing bug this fixes). Opposite windings on
+ * one plane never z-fight — exactly one face is visible from any side.
+ */
+function sealedWall(
+  width: number,
+  height: number,
+  yawIn: number,
+  x: number,
+  y: number,
+  z: number,
+): BufferGeometry[] {
+  return [yawIn, yawIn + Math.PI].map((yaw) => {
+    // abs: a negative span must not silently flip the winding — yawIn is the
+    // single source of facing (the pre-seal right flank shipped inverted this way).
+    const g = new PlaneGeometry(Math.abs(width), height);
+    g.rotateY(yaw);
+    g.translate(x, y, z);
+    return g;
+  });
+}
+
 export function vestibuleStoneGeometry(): BufferGeometry {
   const geoms: BufferGeometry[] = [];
 
-  // +x flank — full straight wall (the walk lane runs along it).
-  const rightFlank = new PlaneGeometry(VESTIBULE_DEPTH, CEILING_HEIGHT);
-  rightFlank.rotateY(Math.PI / 2);
-  rightFlank.translate(HALF_W, CEILING_HEIGHT / 2, (NEAR_Z + FAR_Z) / 2);
-  geoms.push(rightFlank);
+  // +x flank — full straight wall (the walk lane runs along it). Inward = −x.
+  geoms.push(
+    ...sealedWall(
+      VESTIBULE_DEPTH,
+      CEILING_HEIGHT,
+      -Math.PI / 2,
+      HALF_W,
+      CEILING_HEIGHT / 2,
+      (NEAR_Z + FAR_Z) / 2,
+    ),
+  );
 
-  // −x flank — near segment up to the alcove mouth…
-  const nearSeg = new PlaneGeometry(ALCOVE_NEAR_Z - NEAR_Z, CEILING_HEIGHT);
-  nearSeg.rotateY(-Math.PI / 2);
-  nearSeg.translate(-HALF_W, CEILING_HEIGHT / 2, (NEAR_Z + ALCOVE_NEAR_Z) / 2);
-  geoms.push(nearSeg);
+  // −x flank — near segment up to the alcove mouth… Inward = +x.
+  geoms.push(
+    ...sealedWall(
+      ALCOVE_NEAR_Z - NEAR_Z,
+      CEILING_HEIGHT,
+      Math.PI / 2,
+      -HALF_W,
+      CEILING_HEIGHT / 2,
+      (NEAR_Z + ALCOVE_NEAR_Z) / 2,
+    ),
+  );
 
-  // …the alcove back wall…
-  const alcoveBack = new PlaneGeometry(FAR_Z - ALCOVE_NEAR_Z, CEILING_HEIGHT);
-  alcoveBack.rotateY(-Math.PI / 2);
-  alcoveBack.translate(ALCOVE_BACK_X, CEILING_HEIGHT / 2, (ALCOVE_NEAR_Z + FAR_Z) / 2);
-  geoms.push(alcoveBack);
+  // …the alcove back wall (inward = +x, into the alcove)…
+  geoms.push(
+    ...sealedWall(
+      FAR_Z - ALCOVE_NEAR_Z,
+      CEILING_HEIGHT,
+      Math.PI / 2,
+      ALCOVE_BACK_X,
+      CEILING_HEIGHT / 2,
+      (ALCOVE_NEAR_Z + FAR_Z) / 2,
+    ),
+  );
 
-  // …and the connector wall across the alcove mouth (faces into the alcove).
-  const connector = new PlaneGeometry(-HALF_W - ALCOVE_BACK_X, CEILING_HEIGHT);
-  connector.translate((ALCOVE_BACK_X + -HALF_W) / 2, CEILING_HEIGHT / 2, ALCOVE_NEAR_Z);
-  geoms.push(connector);
+  // …and the connector wall across the alcove mouth.
+  geoms.push(
+    ...sealedWall(
+      -HALF_W - ALCOVE_BACK_X,
+      CEILING_HEIGHT,
+      0,
+      (ALCOVE_BACK_X + -HALF_W) / 2,
+      CEILING_HEIGHT / 2,
+      ALCOVE_NEAR_Z,
+    ),
+  );
 
   // Far cap with the door gap (jamb + lintel) centered at FAR_DOOR_CENTER_X.
   // Phase 3 renders this conditionally (edge rooms only); unconditional here.
   const doorLeft = FAR_DOOR_CENTER_X - DOOR_WIDTH / 2;
   const doorRight = FAR_DOOR_CENTER_X + DOOR_WIDTH / 2;
-  const leftJamb = new PlaneGeometry(doorLeft - ALCOVE_BACK_X, CEILING_HEIGHT);
-  leftJamb.translate((ALCOVE_BACK_X + doorLeft) / 2, CEILING_HEIGHT / 2, FAR_Z);
-  geoms.push(leftJamb);
+  geoms.push(
+    ...sealedWall(
+      doorLeft - ALCOVE_BACK_X,
+      CEILING_HEIGHT,
+      0,
+      (ALCOVE_BACK_X + doorLeft) / 2,
+      CEILING_HEIGHT / 2,
+      FAR_Z,
+    ),
+  );
   if (doorRight < HALF_W - 1e-9) {
-    const rightJamb = new PlaneGeometry(HALF_W - doorRight, CEILING_HEIGHT);
-    rightJamb.translate((doorRight + HALF_W) / 2, CEILING_HEIGHT / 2, FAR_Z);
-    geoms.push(rightJamb);
+    geoms.push(
+      ...sealedWall(
+        HALF_W - doorRight,
+        CEILING_HEIGHT,
+        0,
+        (doorRight + HALF_W) / 2,
+        CEILING_HEIGHT / 2,
+        FAR_Z,
+      ),
+    );
   }
   const lintelHeight = CEILING_HEIGHT - DOOR_HEIGHT;
-  const lintel = new PlaneGeometry(DOOR_WIDTH, lintelHeight);
-  lintel.translate(FAR_DOOR_CENTER_X, DOOR_HEIGHT + lintelHeight / 2, FAR_Z);
-  geoms.push(lintel);
+  geoms.push(
+    ...sealedWall(
+      DOOR_WIDTH,
+      lintelHeight,
+      0,
+      FAR_DOOR_CENTER_X,
+      DOOR_HEIGHT + lintelHeight / 2,
+      FAR_Z,
+    ),
+  );
 
   // Vestibule-side face of the shared side-3 wall (jambs + lintel around the door).
   geoms.push(...wallForSide(3, 'out'));
