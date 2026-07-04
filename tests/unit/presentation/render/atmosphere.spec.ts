@@ -24,14 +24,26 @@ describe('edge-fog knob (§4.4)', () => {
     );
   });
 
-  it('only fogDensity ever differs from the default — never color/exposure/ambient/background', () => {
+  it('only the fog (density + color) ever ramps — background/exposure/ambient never modulate', () => {
     fc.assert(
       fc.property(distArb, distArb, (rooms, floors) => {
         const p = atmosphereAt(rooms, floors);
-        expect(p.fogColor).toBe(DEFAULT_ATMOSPHERE.fogColor);
         expect(p.background).toBe(DEFAULT_ATMOSPHERE.background);
         expect(p.toneMappingExposure).toBe(DEFAULT_ATMOSPHERE.toneMappingExposure);
         expect(p.ambientIntensity).toBe(DEFAULT_ATMOSPHERE.ambientIntensity);
+      }),
+    );
+  });
+
+  it('fogColor is the default outside the ramp and ramps to the edge tint at the edge', () => {
+    // Boundary = identity; the edge = full edge tint; nothing in between escapes the two.
+    expect(atmosphereAt(RAMP.width, RAMP.width).fogColor).toBe(DEFAULT_ATMOSPHERE.fogColor);
+    expect(atmosphereAt(0, 0).fogColor).toBe(RAMP.edgeFogColor);
+    expect(atmosphereAt(0, 0).fogColor).not.toBe(DEFAULT_ATMOSPHERE.fogColor);
+    // Valid #rrggbb at every distance.
+    fc.assert(
+      fc.property(distArb, distArb, (rooms, floors) => {
+        expect(atmosphereAt(rooms, floors).fogColor).toMatch(/^#[0-9a-f]{6}$/);
       }),
     );
   });

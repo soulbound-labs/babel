@@ -68,11 +68,13 @@ export const POSES: readonly CameraPose[] = [
     pitch: 0,
     coordinate: { n: 0n, floor: 0n },
   },
-  // P7 — near the n = 64 edge (edge − ramp/2 = 62), facing outward past the
-  //      last room; exact coordinate finalized once the ramp width is confirmed.
+  // P7 — near the n = 64 edge (edge − ramp/2 = 62), in the far-door lane PAST the
+  //      vestibule stair, looking straight down the receding corridor (doors
+  //      drift +0.55 x per hop) into the denser edge fog. Framing finalized at
+  //      the gate; coordinate provisional until the ramp is locked.
   {
-    position: { x: 0, y: EYE_HEIGHT, z: -1.0 },
-    yaw: 0,
+    position: { x: 0.5, y: EYE_HEIGHT, z: -3.5 },
+    yaw: (-6 * Math.PI) / 180,
     pitch: 0,
     coordinate: { n: 62n, floor: 0n },
   },
