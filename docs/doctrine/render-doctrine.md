@@ -76,8 +76,13 @@ doorway/stair blockers). Slide response iterates ≤ 3 times; residual violation
 the delta (stay put — never tunnel, never NaN); frame delta clamps at 100 ms so a
 hidden tab can't teleport the player through a wall. This purity is what makes
 containment property-testable in node (10⁴ random walks, `collision.spec.ts`).
-A physics engine (rapier et al.) buys nothing this geometry needs — if Unit 04's stair
-math outgrows the analytic model, **that** unit renegotiates with evidence.
+A physics engine (rapier et al.) buys nothing this geometry needs. Unit 04's helicoid
+stair landed _inside_ this analytic model — `render/player/stair.ts` is a pure cylindrical
+surface function (tread-top snap, `MAX_STEP` cliff-reject); the player-center walk-band
+`[STAIR_INNER_R, STAIR_OUTER_R]` was widened to `0.72` at the Phase-7 mood gate (the 0.24 m
+band pinned the 0.56 m capsule against both the newel and the edge — "squeezing through a
+cutout"). The _coordinate-driven_ half — which rooms are live, when the `CollisionContext`
+is rebuilt, how the frame re-bases — is [`traversal-doctrine.md`](./traversal-doctrine.md).
 
 ## 6. Gotchas (symptom → cause → fix)
 
@@ -103,6 +108,8 @@ math outgrows the analytic model, **that** unit renegotiates with evidence.
 
 - `docs/tasks/completed/03-world-render/03-world-render-spec.md` — the spec that froze
   these seams (§4 architecture, §5 invariants INV-R1..R10).
+- [`traversal-doctrine.md`](./traversal-doctrine.md) — the coordinate-driven world that
+  streams these rooms, rebuilds the collision context, and re-bases the frame on commit.
 - [`audio-doctrine.md`](./audio-doctrine.md) — the bus the camera's listener pose drives.
 - [`mood-gate-doctrine.md`](./mood-gate-doctrine.md) — the acceptance ritual + regression
   protocol for anything that touches light, fog, or materials.

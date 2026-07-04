@@ -104,6 +104,26 @@ doctrines:
       ]
     layer-hint: frontend
 
+  - id: traversal
+    path: docs/doctrine/traversal-doctrine.md
+    pointers: [AGENTS.md]
+    summary: The coordinate-driven world — the constant 11-room working set, the traversal machine (the move log IS the coordinate), synchronous same-frame floating-origin re-base, streaming + shaft phase-lock, and the ±64 soft-stop edge.
+    triggers:
+      [
+        traversal,
+        streaming,
+        working set,
+        working-set,
+        floating origin,
+        re-base,
+        rebase,
+        commit plane,
+        walkable bound,
+        shaft impostor,
+        edge,
+      ]
+    layer-hint: frontend
+
   - id: audio
     path: docs/doctrine/audio-doctrine.md
     pointers: [AGENTS.md]

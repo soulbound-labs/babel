@@ -43,6 +43,10 @@ Every change is bound to the doctrines registered in `docs/doctrine/doctrine-man
 - `docs/doctrine/render-doctrine.md` — the presentation/render layer: R3F+three Lane A, the frozen
   seams (dimensions, book-slot mapping, camera suspend/resume, atmosphere/mirror hooks), deterministic
   presentation, the perf budget, analytic collision. Read before touching `src/presentation/render/**`.
+- `docs/doctrine/traversal-doctrine.md` — the coordinate-driven world: the constant 11-room working
+  set, the traversal machine (the move log IS the coordinate), synchronous same-frame floating-origin
+  re-base via the `rebaseRef` callback, streaming + shaft phase-lock, and the ±64 soft-stop edge. Read
+  before touching `src/presentation/traversal/**` or `src/presentation/render/world/**`.
 - `docs/doctrine/audio-doctrine.md` — the N-emitter `AudioBus`: frozen handle-based API, the narrow
   `BusContext` test seam, procedural ambient, entry-gesture resume, and the Web Audio lifecycle
   gotchas. Read before touching `src/presentation/audio/**` or debugging silence.
