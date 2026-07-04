@@ -18,12 +18,17 @@ import { SPREAD_REVEAL_SECONDS } from '@/presentation/render/reading/reveal';
 
 const ADDRESS = { n: 42n, floor: -7n, wall: 1, shelf: 2, volume: 3, page: 0 };
 
-/** Drive the machine to the settled-open state at page 0. */
+/** Drive the machine to the settled-open state at page 0, stream just begun. */
 function openedReader() {
   let s = open(CLOSED_READER, ADDRESS, 123, 'floor');
   s = acknowledgeIntent(s);
   s = tick(s, READ_APPROACH_SECONDS + 0.01).state;
   return s;
+}
+
+/** Open AND fully streamed — the only state a turn is accepted from (§4.4). */
+function streamedReader() {
+  return tick(openedReader(), SPREAD_REVEAL_SECONDS).state;
 }
 
 describe('reader state machine (INV-B6)', () => {
@@ -48,7 +53,7 @@ describe('reader state machine (INV-B6)', () => {
   });
 
   it('the address bigints pass through untouched across a full read (coordinate invariance)', () => {
-    let s = openedReader();
+    let s = streamedReader();
     s = advance(s).state;
     for (let i = 0; i < 50; i++) s = tick(s, 0.1).state;
     expect(s.address?.n).toBe(42n);
@@ -72,22 +77,26 @@ describe('reader state machine (INV-B6)', () => {
   it('streaming reveals at the locked cadence and caps at the full spread', () => {
     let s = openedReader();
     s = tick(s, 1).state;
-    expect(revealFrontOf(s)).toBe(8); // 8 lines/s
+    expect(revealFrontOf(s)).toBe(16); // 16 lines/s
     s = tick(s, SPREAD_REVEAL_SECONDS).state;
-    expect(revealFrontOf(s)).toBe(80); // both leaves (0..79)
+    expect(revealFrontOf(s)).toBe(40); // both leaves, in parallel
   });
 
-  it('advance mid-stream completes the reveal FIRST, then turns (never half-written)', () => {
-    let s = openedReader();
-    s = tick(s, 1.0).state; // 8 of 80 lines revealed
-    const { state, events } = advance(s);
-    expect(events).toEqual(['turn-lift']);
-    expect(state.status).toBe('turning');
-    expect(revealFrontOf(state)).toBe(80); // reveal.complete() — whole spread
+  it('advance AND retreat are refused mid-stream — no flip until the spread resolves (§4.4)', () => {
+    let s: ReaderState = { ...openedReader(), address: { ...ADDRESS, page: 6 } };
+    s = tick(s, 1.0).state; // 16 of 40 lines revealed — still streaming
+    expect(advance(s).state).toBe(s);
+    expect(advance(s).events).toEqual([]);
+    expect(retreat(s).state).toBe(s);
+    expect(retreat(s).events).toEqual([]);
+    // The moment the stream completes, the same click is accepted.
+    const done = tick(s, SPREAD_REVEAL_SECONDS).state;
+    expect(advance(done).state.status).toBe('turning');
+    expect(advance(done).events).toEqual(['turn-lift']);
   });
 
   it('the turn settles after the locked duration onto the next spread (+2), streaming fresh', () => {
-    const s = advance(openedReader()).state;
+    const s = advance(streamedReader()).state;
     const settled = tick(s, READ_TURN_SECONDS + 0.01);
     expect(settled.events).toEqual(['turn-settle']);
     expect(settled.state.status).toBe('open');
@@ -96,7 +105,7 @@ describe('reader state machine (INV-B6)', () => {
   });
 
   it('turn progress is monotonic 0→1 during an advance turn', () => {
-    let s = advance(openedReader()).state;
+    let s = advance(streamedReader()).state;
     let prev = 0;
     for (let i = 0; i < 10; i++) {
       s = tick(s, READ_TURN_SECONDS / 12).state;
@@ -108,7 +117,7 @@ describe('reader state machine (INV-B6)', () => {
   });
 
   it('retreat is refused on the first spread; advance is refused on the last spread', () => {
-    const s = openedReader(); // spread (0,1)
+    const s = streamedReader(); // spread (0,1), fully revealed
     expect(retreat(s).state).toBe(s);
     expect(retreat(s).events).toEqual([]);
     const atEnd = { ...s, address: { ...ADDRESS, page: 408 } }; // last spread (408,409)
@@ -116,18 +125,20 @@ describe('reader state machine (INV-B6)', () => {
   });
 
   it('a retreated spread re-opens fully revealed (only new spreads stream)', () => {
-    let s: ReaderState = { ...openedReader(), address: { ...ADDRESS, page: 6 } };
+    let s: ReaderState = { ...streamedReader(), address: { ...ADDRESS, page: 6 } };
     s = retreat(s).state;
     const settled = tick(s, READ_TURN_SECONDS + 0.01).state;
     expect(settled.address?.page).toBe(4); // spread (6,7) → (4,5)
-    expect(revealFrontOf(settled)).toBe(80);
+    expect(revealFrontOf(settled)).toBe(40);
+    // Already read ⇒ already complete ⇒ it can flip again immediately.
+    expect(retreat(settled).state.status).toBe('turning');
   });
 
   it('close from mid-approach or mid-turn returns cleanly to CLOSED with resume intent', () => {
     const midApproach = tick(open(CLOSED_READER, ADDRESS, 1, 'floor'), 0.2).state;
     expect(close(midApproach).status).toBe('closed');
     expect(close(midApproach).intent).toBe('resume');
-    const midTurn = advance(openedReader()).state;
+    const midTurn = advance(streamedReader()).state;
     expect(close(midTurn).status).toBe('closed');
   });
 });

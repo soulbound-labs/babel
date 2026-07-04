@@ -63,9 +63,10 @@ then re-render each twice and confirm pixel-hash-equal (determinism smoke §5).
 
 - [ ] **Approach**: book travels shelf→reading-rest on a monotonic eased path,
       arrives centred + upright; no snap/teleport frame.
-- [ ] **Stream**: glyphs resolve line-by-line top-to-bottom at 8 lines/s (full
-      page 5.0 s); no spinner/progress/loading artifact anywhere; clean
-      resolved/unresolved boundary.
+- [ ] **Stream**: glyphs resolve line-by-line top-to-bottom at 16 lines/s, BOTH
+      leaves in parallel (full spread 2.5 s); no spinner/progress/loading
+      artifact anywhere; clean resolved/unresolved boundary; page flips
+      (left/right click) refuse until the spread finishes resolving.
 - [ ] **Turn**: continuous spine-pivot bend over 0.9 s; the silhouette CURVES
       (not a flat flip); no z-fighting / backface-black; glyphs ride the curl
       (P11).

@@ -6,9 +6,10 @@
  * camera — the address bigints pass through untouched (INV-B6).
  *
  * Selection is refused unless `surface === 'floor'` (no book-pulling
- * mid-stair). A turn started mid-stream first completes the reveal — never a
- * half-written page mid-flight (§4.4). Retreated pages re-open fully revealed
- * (you already read them; only NEW pages stream).
+ * mid-stair). A turn is REFUSED mid-stream — the spread must finish resolving
+ * before it can flip, so a page is never half-written mid-flight (§4.4).
+ * Retreated pages re-open fully revealed (you already read them; only NEW
+ * pages stream — and being complete, they can flip again immediately).
  */
 import { BOOK_PAGES, READ_APPROACH_SECONDS, READ_TURN_SECONDS } from '../room/dimensions';
 import type { PageAddress } from './book-address';
@@ -24,7 +25,7 @@ export type SurfaceModeLike = 'floor' | 'stair';
 export type ReadingPhase = {
   /** Approach fraction 0..1 (P9: 0.5). */
   approach?: number;
-  /** Lines resolved across the spread 0..80 — left leaf 0..39, right 40..79. */
+  /** Lines resolved 0..40 — both leaves stream in parallel, sharing the front. */
   revealedLines?: number;
   /** Spine-pivot turn progress 0..1 (P11: 0.5). */
   turnProgress?: number;
@@ -88,17 +89,18 @@ export type ReaderTransition = { state: ReaderState; events: ReaderEvent[] };
 
 /**
  * Turn forward to the NEXT spread (page += 2: an open spread is the leaf pair
- * `(page, page+1)`). Mid-stream: completes the reveal FIRST, then turns (§4.4).
- * Refused when the next spread's left leaf would fall past the last page.
+ * `(page, page+1)`). Refused mid-stream — the spread must finish resolving
+ * before it can flip (§4.4) — and when the next spread's left leaf would fall
+ * past the last page.
  */
 export function advance(state: ReaderState): ReaderTransition {
   if (state.status !== 'open' || state.address === null) return { state, events: [] };
+  if (state.revealPhase < SPREAD_REVEAL_SECONDS) return { state, events: [] };
   if (state.address.page + 2 > BOOK_PAGES - 1) return { state, events: [] };
   return {
     state: {
       ...state,
       status: 'turning',
-      revealPhase: SPREAD_REVEAL_SECONDS, // reveal.complete(): never half-written mid-flight
       turnElapsed: 0,
       turnDirection: 1,
     },
@@ -106,15 +108,18 @@ export function advance(state: ReaderState): ReaderTransition {
   };
 }
 
-/** Turn back to the PREVIOUS spread (page -= 2). It re-opens fully revealed. */
+/**
+ * Turn back to the PREVIOUS spread (page -= 2). It re-opens fully revealed.
+ * Same mid-stream gate as `advance` — no flip until the stream completes.
+ */
 export function retreat(state: ReaderState): ReaderTransition {
   if (state.status !== 'open' || state.address === null) return { state, events: [] };
+  if (state.revealPhase < SPREAD_REVEAL_SECONDS) return { state, events: [] };
   if (state.address.page - 2 < 0) return { state, events: [] };
   return {
     state: {
       ...state,
       status: 'turning',
-      revealPhase: SPREAD_REVEAL_SECONDS,
       turnElapsed: 0,
       turnDirection: -1,
     },
