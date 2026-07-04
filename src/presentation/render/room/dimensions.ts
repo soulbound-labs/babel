@@ -33,3 +33,29 @@ export const EYE_HEIGHT = 1.62;
 export const PLAYER_RADIUS = 0.28;
 export const WALK_SPEED = 1.4; // m/s — a person, not a strafe-jumper
 export const POSE_PITCH_MAX = (80 * Math.PI) / 180;
+
+// ── Unit 05 reading constants (§4.2) — appended, additive only (§4.7).
+// Seams/geometry, not knobs: byte-frozen at the chills-gate. The one declared
+// mood KNOB is the reading glow (defaults below, module: reading/reading-light.ts).
+export const PAGE_LINES = 40; // Borges page format — pinned to the core codec by INV-B9
+export const PAGE_COLS = 80; // pinned to the core codec by INV-B9
+export const READ_LINES_PER_SECOND = 8; // locked cadence — a full page resolves in 5.0 s
+export const READ_TURN_SECONDS = 0.9; // spine-pivot page turn, lift → settle
+export const READ_APPROACH_SECONDS = 1.1; // shelf → reading-rest ease (monotonic, no snap)
+export const READ_DISTANCE = 0.4; // book rest, meters in front of the held camera
+export const READ_HEIGHT_OFFSET = -0.1; // book center sits below the eye line
+/** One page face — the book's shelf depth becomes the open page width. */
+export const PAGE_FACE_WIDTH = SHELF_DEPTH * 0.75; // 0.24 — matches the shelved book depth
+export const PAGE_FACE_HEIGHT = BOOK_HEIGHT; // 0.31
+export const PAGE_TEXT_MARGIN = 0.02; // vellum border around the glyph block
+/** Glyph cell (§4.2): 80 cols × 40 lines inside the margins. */
+export const READ_CELL_WIDTH = (PAGE_FACE_WIDTH - 2 * PAGE_TEXT_MARGIN) / PAGE_COLS;
+export const READ_LINE_PITCH = (PAGE_FACE_HEIGHT - 2 * PAGE_TEXT_MARGIN) / PAGE_LINES;
+/** Reading-glow defaults (KDD-8) — live-tuned at the gate via reading-light.ts. */
+export const READ_GLOW_COLOR = '#ffc78f'; // warmer than the bulbs' #ffd9a0
+export const READ_GLOW_INTENSITY = 1.4;
+export const READ_GLOW_DISTANCE = 1.3; // short range: lifts the book, never the walls
+/** Whisper of vellum emissive — anti grazing-black only, never a glow source. */
+export const VELLUM_COLOR = '#c7b592';
+export const VELLUM_EMISSIVE = '#181309';
+export const VELLUM_EMISSIVE_INTENSITY = 0.5;
