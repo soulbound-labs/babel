@@ -131,6 +131,13 @@ doctrines:
     triggers: [audio, sound, emitter, ambient, hum, listener, web audio, positional, gain]
     layer-hint: frontend
 
+  - id: book-reading
+    path: docs/doctrine/book-reading-doctrine.md
+    pointers: [AGENTS.md]
+    summary: The book hero moment — troika SDF glyphs on vellum via drei, the parallel spread reveal (leaf pair, shared front), the spine-pivot bend the type rides, the reading-mode-under-suspend() seam, and the pointer-lock input contract (Q closes, Esc pauses).
+    triggers: [book, reading, glyph, troika, text, page, spread, turn, reveal, vellum, folio, font]
+    layer-hint: frontend
+
   - id: mood-gate
     path: docs/doctrine/mood-gate-doctrine.md
     pointers: [AGENTS.md]

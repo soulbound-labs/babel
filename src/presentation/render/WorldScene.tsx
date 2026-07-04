@@ -8,8 +8,8 @@
  * third-party, and presentation modules — never adapters or convex.
  */
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
-import { useMemo, useRef } from 'react';
-import type { Ref } from 'react';
+import { useCallback, useMemo, useRef } from 'react';
+import type { Ref, RefObject } from 'react';
 import { Vector3 } from 'three';
 
 import { ORIGIN } from '../../domain/entities';
@@ -20,8 +20,16 @@ import { DebugStats } from './debug/DebugStats';
 import { parseDebugParam, parsePoseParam, SPAWN_POSE } from './debug/poses';
 import { LocomotionController } from './player/LocomotionController';
 import type { LocomotionHandle } from './player/LocomotionController';
+import { BookReader } from './reading/BookReader';
 import { EdgeVeil } from './world/EdgeVeil';
 import { RoomStream } from './world/RoomStream';
+
+/** Forward a value into a caller-supplied ref of either shape. */
+function assignRef<T>(ref: Ref<T> | undefined, value: T | null): void {
+  if (!ref) return;
+  if (typeof ref === 'function') ref(value as T);
+  else (ref as RefObject<T | null>).current = value;
+}
 
 /** The camera drives the audio listener each frame (§4.6). */
 function ListenerPoseDriver({ bus }: { bus: AudioBus }) {
@@ -60,6 +68,16 @@ export function WorldScene({ locomotionRef, audioBus, audioCtx, footsteps }: Wor
   // The same-frame re-base channel (§4.2.1): controller → RoomStream + EdgeVeil, no React round-trip.
   const rebaseRef = useRef<((c: Coordinate) => void) | null>(null);
   const edgeVeilRef = useRef<((c: Coordinate) => void) | null>(null);
+  // The ONE LocomotionHandle (§4.7), teed: the reader consumes it in-scene
+  // (Unit 05 reads in place under it) and any outer caller still receives it.
+  const readerHandleRef = useRef<LocomotionHandle | null>(null);
+  const teeLocomotionRef = useCallback(
+    (handle: LocomotionHandle | null) => {
+      readerHandleRef.current = handle;
+      assignRef(locomotionRef, handle);
+    },
+    [locomotionRef],
+  );
 
   return (
     <Canvas
@@ -70,7 +88,7 @@ export function WorldScene({ locomotionRef, audioBus, audioCtx, footsteps }: Wor
       <LocomotionController
         initialPose={pose}
         initialCoordinate={initialCoordinate}
-        handleRef={locomotionRef}
+        handleRef={teeLocomotionRef}
         footsteps={footsteps}
         onCommit={(c) => {
           rebaseRef.current?.(c);
@@ -85,6 +103,12 @@ export function WorldScene({ locomotionRef, audioBus, audioCtx, footsteps }: Wor
         initialCoordinate={initialCoordinate}
         audioBus={audioBus}
         audioCtx={audioCtx}
+      />
+      <BookReader
+        handleRef={readerHandleRef}
+        audioBus={audioBus}
+        audioCtx={audioCtx}
+        pinned={pose.book}
       />
     </Canvas>
   );

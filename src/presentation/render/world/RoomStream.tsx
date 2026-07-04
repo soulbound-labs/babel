@@ -3,11 +3,12 @@
  * per-material mega-instancing:
  *
  *   stone ×11 = 1 draw call · wood (shelves + spiral turn) = 1 · metal
- *   railing = 1 · void (closet recesses) = 1 · bulb spheres = 1 · books = 11
+ *   railing = 1 · bulb spheres = 1 · books = 11
  *   (per-room meshes — `instanceId === slot` per mesh is the FROZEN Unit 05
- *   seam; room identity = which mesh the ray hit, in `userData`) · mirrors ×3
- *   (current + horizontal neighbors) · edge blockers ≤ 2 (only when an edge
- *   room is live).
+ *   seam; room identity = which mesh the ray hit, in `userData`) · mirror
+ *   pairs ×3 (current + horizontal neighbors; the current room's pair is
+ *   live-reflective near the vestibule — InfinityMirrors' proximity gate) ·
+ *   edge blockers ≤ 2 (only when an edge room is live).
  *
  * Lights: a fixed pool of 12 PointLights (3 × {n−1, n, n+1} on the current
  * floor + the floors-±1 vestibule bulbs + the floor-−1 near bulb — descent
@@ -55,19 +56,14 @@ import {
   LIGHT_DISTANCE,
   LIGHT_INTENSITY,
 } from '../room/Bulbs';
-import { HEX_APOTHEM, MIRROR_HEIGHT, VESTIBULE_WIDTH } from '../room/dimensions';
+import { InfinityMirrors } from '../room/InfinityMirrors';
 import { BOOK_COUNT, slotJitter, slotTransform } from '../room/instancing';
 import { metalMaterial, stoneMaterial, voidMaterial, woodMaterial } from '../room/materials';
-import { MirrorSurface } from '../room/MirrorSurface';
 import { entranceVoidGeometry, hexStoneGeometry, mustMerge } from '../room/Room';
 import { railingGeometry } from '../room/Shaft';
 import { shelvesGeometry } from '../room/Shelves';
 import { spiralTurnGeometry } from '../room/Staircase';
-import {
-  closetDoorwaysGeometry,
-  farDoorPlugGeometry,
-  vestibuleStoneGeometry,
-} from '../room/Vestibule';
+import { farDoorPlugGeometry, vestibuleStoneGeometry } from '../room/Vestibule';
 import { ShaftImpostor } from './ShaftImpostor';
 import { streamTransforms } from './streaming';
 import type { RoomTransform } from './streaming';
@@ -76,18 +72,13 @@ const MAX_ROOMS = 11;
 const MIRROR_DELTAS = [-1, 0, 1] as const;
 /** Current vestibule's shaft axis in the local frame (§4.3 shaft drone). */
 const SHAFT_DRONE_LOCAL = { x: STAIR_AXIS_X, y: 1.0, z: STAIR_AXIS_Z };
-const MIRROR_LOCAL: [number, number, number] = [
-  VESTIBULE_WIDTH / 2 - 0.02,
-  MIRROR_HEIGHT / 2 + 0.3,
-  -(HEX_APOTHEM + 1.8),
-];
 
 /** Base is white; per-instance color carries the actual dark leather tone (as BookWalls). */
 const bookMaterial = new MeshStandardMaterial({ color: '#ffffff', roughness: 0.9 });
 const bulbMaterial = new MeshBasicMaterial({ color: BULB_COLOR });
 
 type StreamObjects = {
-  megas: InstancedMesh[]; // stone, wood, metal, void — one instance per live room
+  megas: InstancedMesh[]; // stone, wood, metal — one instance per live room
   bulbs: InstancedMesh; // 3 spheres per live room
   books: { group: Group; mesh: InstancedMesh }[];
   lights: PointLight[];
@@ -109,7 +100,6 @@ function buildObjects(): StreamObjects {
   const stone = makeMega(mustMerge([hexStoneGeometry(), vestibuleStoneGeometry()]), stoneMaterial);
   const wood = makeMega(mustMerge([shelvesGeometry(), spiral]), woodMaterial);
   const metal = makeMega(railingGeometry(), metalMaterial);
-  const voids = makeMega(closetDoorwaysGeometry(), voidMaterial);
 
   const bulbs = new InstancedMesh(
     new SphereGeometry(BULB_RADIUS, 12, 8),
@@ -156,7 +146,7 @@ function buildObjects(): StreamObjects {
   const entranceVoid = new Mesh(entranceVoidGeometry(), voidMaterial);
   const farPlug = new Mesh(farDoorPlugGeometry(), voidMaterial);
 
-  return { megas: [stone, wood, metal, voids], bulbs, books, lights, entranceVoid, farPlug };
+  return { megas: [stone, wood, metal], bulbs, books, lights, entranceVoid, farPlug };
 }
 
 /** The 12-light-pool targets for a live set (KDD-4). Parked lights get intensity 0. */
@@ -395,7 +385,9 @@ export function RoomStream({
             mirrorGroups.current[i] = g;
           }}
         >
-          <MirrorSurface position={MIRROR_LOCAL} rotationY={-Math.PI / 2} />
+          {/* Facing pair per vestibule; live reflections in the current room only
+              (dn === 0 — the pair's proximity gate does the per-frame swap). */}
+          <InfinityMirrors live={dn === 0} />
         </group>
       ))}
     </group>

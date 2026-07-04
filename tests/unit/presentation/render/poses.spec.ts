@@ -50,13 +50,45 @@ describe('camera poses (§4.4)', () => {
   });
 
   it('P5–P8 each carry a logical (n, floor) bigint coordinate to teleport to', () => {
-    expect(POSES).toHaveLength(8);
+    expect(POSES).toHaveLength(13); // P13 appended (infinity mirrors) — P1–P12 never renumbered
     for (let i = 4; i < 8; i++) {
       const coord = POSES[i]?.coordinate;
       expect(coord).toBeDefined();
       expect(typeof coord?.n).toBe('bigint');
       expect(typeof coord?.floor).toBe('bigint');
     }
+  });
+
+  it('P13 (infinity mirrors) teleports to origin and carries no book', () => {
+    expect(POSES[12]?.coordinate).toEqual({ n: 0n, floor: 0n });
+    expect(POSES[12]?.book).toBeUndefined();
+  });
+
+  it('P1–P8 carry NO book field — the Unit 05 extension is additive (§4.7)', () => {
+    for (let i = 0; i < 8; i++) {
+      expect(POSES[i]?.book).toBeUndefined();
+    }
+  });
+
+  it('P9–P12 pin the golden address: origin room, first book, first page', () => {
+    for (let i = 8; i < 12; i++) {
+      const book = POSES[i]?.book;
+      expect(book).toBeDefined();
+      expect(book?.address.n).toBe(0n);
+      expect(book?.address.floor).toBe(0n);
+      expect(book?.address.wall).toBe(0);
+      expect(book?.address.shelf).toBe(0);
+      expect(book?.address.volume).toBe(0);
+      expect(book?.address.page).toBe(0);
+      expect(POSES[i]?.coordinate).toEqual({ n: 0n, floor: 0n });
+    }
+  });
+
+  it('P9–P12 phases: approach 0.5 / 20 of 40 / turnProgress 0.5 / fully resolved', () => {
+    expect(POSES[8]?.book?.phase).toEqual({ approach: 0.5 });
+    expect(POSES[9]?.book?.phase).toEqual({ revealedLines: 20 });
+    expect(POSES[10]?.book?.phase).toEqual({ revealedLines: 40, turnProgress: 0.5 });
+    expect(POSES[11]?.book?.phase).toEqual({ revealedLines: 40 });
   });
 
   it('P7 sits near the n = 64 edge (edge − ramp/2 = 62), inside the walkable bound', () => {
@@ -66,15 +98,15 @@ describe('camera poses (§4.4)', () => {
   });
 
   describe('parsePoseParam (E7)', () => {
-    it('parses 1–8 to the matching pose', () => {
-      for (let n = 1; n <= 8; n++) {
+    it('parses 1–13 to the matching pose', () => {
+      for (let n = 1; n <= 13; n++) {
         expect(parsePoseParam(`?pose=${n}`)).toBe(POSES[n - 1]);
       }
     });
 
-    it('rejects 0, 9, and out-of-range with null (normal spawn)', () => {
+    it('rejects 0, 14, and out-of-range with null (normal spawn)', () => {
       expect(parsePoseParam('?pose=0')).toBeNull();
-      expect(parsePoseParam('?pose=9')).toBeNull();
+      expect(parsePoseParam('?pose=14')).toBeNull();
       expect(parsePoseParam('?pose=100')).toBeNull();
       expect(parsePoseParam('?pose=-1')).toBeNull();
     });

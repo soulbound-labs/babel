@@ -13,17 +13,15 @@ import { BufferGeometry, Path, PlaneGeometry, Shape, ShapeGeometry } from 'three
 
 import {
   CEILING_HEIGHT,
-  CLOSET_SIDE,
   DOOR_HEIGHT,
   DOOR_WIDTH,
   HEX_APOTHEM,
-  MIRROR_HEIGHT,
   STAIR_RADIUS,
   VESTIBULE_DEPTH,
   VESTIBULE_WIDTH,
 } from './dimensions';
-import { stoneMaterial, voidMaterial } from './materials';
-import { MirrorSurface } from './MirrorSurface';
+import { InfinityMirrors } from './InfinityMirrors';
+import { stoneMaterial } from './materials';
 import { mustMerge, wallForSide } from './Room';
 import { Staircase } from './Staircase';
 import { ALCOVE_BACK_X, ALCOVE_NEAR_Z, STAIR_AXIS_X, STAIR_AXIS_Z } from '../player/stair';
@@ -64,48 +62,119 @@ function slabWithStairwell(zToShapeY: (z: number) => number): Shape {
   return shape;
 }
 
+/**
+ * A wall plane emitted TWICE — inward and outward faces at the same spot.
+ * Stone is FrontSide: a lone plane is a phantom from its back side, and since
+ * Unit 04 streamed lit neighbors, a phantom vestibule wall reads as "seeing
+ * into the world beyond" (the sealing bug this fixes). Opposite windings on
+ * one plane never z-fight — exactly one face is visible from any side.
+ */
+function sealedWall(
+  width: number,
+  height: number,
+  yawIn: number,
+  x: number,
+  y: number,
+  z: number,
+): BufferGeometry[] {
+  return [yawIn, yawIn + Math.PI].map((yaw) => {
+    // abs: a negative span must not silently flip the winding — yawIn is the
+    // single source of facing (the pre-seal right flank shipped inverted this way).
+    const g = new PlaneGeometry(Math.abs(width), height);
+    g.rotateY(yaw);
+    g.translate(x, y, z);
+    return g;
+  });
+}
+
 export function vestibuleStoneGeometry(): BufferGeometry {
   const geoms: BufferGeometry[] = [];
 
-  // +x flank — full straight wall (the walk lane runs along it).
-  const rightFlank = new PlaneGeometry(VESTIBULE_DEPTH, CEILING_HEIGHT);
-  rightFlank.rotateY(Math.PI / 2);
-  rightFlank.translate(HALF_W, CEILING_HEIGHT / 2, (NEAR_Z + FAR_Z) / 2);
-  geoms.push(rightFlank);
+  // +x flank — full straight wall (the walk lane runs along it). Inward = −x.
+  geoms.push(
+    ...sealedWall(
+      VESTIBULE_DEPTH,
+      CEILING_HEIGHT,
+      -Math.PI / 2,
+      HALF_W,
+      CEILING_HEIGHT / 2,
+      (NEAR_Z + FAR_Z) / 2,
+    ),
+  );
 
-  // −x flank — near segment up to the alcove mouth…
-  const nearSeg = new PlaneGeometry(ALCOVE_NEAR_Z - NEAR_Z, CEILING_HEIGHT);
-  nearSeg.rotateY(-Math.PI / 2);
-  nearSeg.translate(-HALF_W, CEILING_HEIGHT / 2, (NEAR_Z + ALCOVE_NEAR_Z) / 2);
-  geoms.push(nearSeg);
+  // −x flank — near segment up to the alcove mouth… Inward = +x.
+  geoms.push(
+    ...sealedWall(
+      ALCOVE_NEAR_Z - NEAR_Z,
+      CEILING_HEIGHT,
+      Math.PI / 2,
+      -HALF_W,
+      CEILING_HEIGHT / 2,
+      (NEAR_Z + ALCOVE_NEAR_Z) / 2,
+    ),
+  );
 
-  // …the alcove back wall…
-  const alcoveBack = new PlaneGeometry(FAR_Z - ALCOVE_NEAR_Z, CEILING_HEIGHT);
-  alcoveBack.rotateY(-Math.PI / 2);
-  alcoveBack.translate(ALCOVE_BACK_X, CEILING_HEIGHT / 2, (ALCOVE_NEAR_Z + FAR_Z) / 2);
-  geoms.push(alcoveBack);
+  // …the alcove back wall (inward = +x, into the alcove)…
+  geoms.push(
+    ...sealedWall(
+      FAR_Z - ALCOVE_NEAR_Z,
+      CEILING_HEIGHT,
+      Math.PI / 2,
+      ALCOVE_BACK_X,
+      CEILING_HEIGHT / 2,
+      (ALCOVE_NEAR_Z + FAR_Z) / 2,
+    ),
+  );
 
-  // …and the connector wall across the alcove mouth (faces into the alcove).
-  const connector = new PlaneGeometry(-HALF_W - ALCOVE_BACK_X, CEILING_HEIGHT);
-  connector.translate((ALCOVE_BACK_X + -HALF_W) / 2, CEILING_HEIGHT / 2, ALCOVE_NEAR_Z);
-  geoms.push(connector);
+  // …and the connector wall across the alcove mouth.
+  geoms.push(
+    ...sealedWall(
+      -HALF_W - ALCOVE_BACK_X,
+      CEILING_HEIGHT,
+      0,
+      (ALCOVE_BACK_X + -HALF_W) / 2,
+      CEILING_HEIGHT / 2,
+      ALCOVE_NEAR_Z,
+    ),
+  );
 
   // Far cap with the door gap (jamb + lintel) centered at FAR_DOOR_CENTER_X.
   // Phase 3 renders this conditionally (edge rooms only); unconditional here.
   const doorLeft = FAR_DOOR_CENTER_X - DOOR_WIDTH / 2;
   const doorRight = FAR_DOOR_CENTER_X + DOOR_WIDTH / 2;
-  const leftJamb = new PlaneGeometry(doorLeft - ALCOVE_BACK_X, CEILING_HEIGHT);
-  leftJamb.translate((ALCOVE_BACK_X + doorLeft) / 2, CEILING_HEIGHT / 2, FAR_Z);
-  geoms.push(leftJamb);
+  geoms.push(
+    ...sealedWall(
+      doorLeft - ALCOVE_BACK_X,
+      CEILING_HEIGHT,
+      0,
+      (ALCOVE_BACK_X + doorLeft) / 2,
+      CEILING_HEIGHT / 2,
+      FAR_Z,
+    ),
+  );
   if (doorRight < HALF_W - 1e-9) {
-    const rightJamb = new PlaneGeometry(HALF_W - doorRight, CEILING_HEIGHT);
-    rightJamb.translate((doorRight + HALF_W) / 2, CEILING_HEIGHT / 2, FAR_Z);
-    geoms.push(rightJamb);
+    geoms.push(
+      ...sealedWall(
+        HALF_W - doorRight,
+        CEILING_HEIGHT,
+        0,
+        (doorRight + HALF_W) / 2,
+        CEILING_HEIGHT / 2,
+        FAR_Z,
+      ),
+    );
   }
   const lintelHeight = CEILING_HEIGHT - DOOR_HEIGHT;
-  const lintel = new PlaneGeometry(DOOR_WIDTH, lintelHeight);
-  lintel.translate(FAR_DOOR_CENTER_X, DOOR_HEIGHT + lintelHeight / 2, FAR_Z);
-  geoms.push(lintel);
+  geoms.push(
+    ...sealedWall(
+      DOOR_WIDTH,
+      lintelHeight,
+      0,
+      FAR_DOOR_CENTER_X,
+      DOOR_HEIGHT + lintelHeight / 2,
+      FAR_Z,
+    ),
+  );
 
   // Vestibule-side face of the shared side-3 wall (jambs + lintel around the door).
   geoms.push(...wallForSide(3, 'out'));
@@ -122,25 +191,11 @@ export function vestibuleStoneGeometry(): BufferGeometry {
   return mustMerge(geoms);
 }
 
-/** Placeholder closet doorways: dark recessed rectangles, one per flank. Unit 06 deepens them.
- * The −x doorway sits on the wall segment between hexagon and alcove mouth — nudged toward
- * the hexagon and narrowed to fit (the alcove displaced its Unit 03 position). */
-export function closetDoorwaysGeometry(): BufferGeometry {
-  const geoms: BufferGeometry[] = [];
-
-  const rightDoor = new PlaneGeometry(CLOSET_SIDE, 1.7);
-  rightDoor.rotateY(Math.PI / 2);
-  rightDoor.translate(HALF_W - 0.01, 1.7 / 2, NEAR_Z - CLOSET_SIDE);
-  geoms.push(rightDoor);
-
-  const leftSegLength = ALCOVE_NEAR_Z - NEAR_Z; // 0.568 m of wall available
-  const leftDoor = new PlaneGeometry(Math.min(CLOSET_SIDE, leftSegLength - 0.07), 1.7);
-  leftDoor.rotateY(-Math.PI / 2);
-  leftDoor.translate(-(HALF_W - 0.01), 1.7 / 2, (NEAR_Z + ALCOVE_NEAR_Z) / 2);
-  geoms.push(leftDoor);
-
-  return mustMerge(geoms);
-}
+// The Unit 03 placeholder closet recesses (flat void-black decals, one per
+// flank) are GONE: the right one vanished behind the full-wall mirror, and
+// the left one read as a black hole punched in the sealed wall — the exact
+// "black wall" glitch. Unit 06 models the two Borges closets as real
+// recessed doorways instead (bead babel-zga4).
 
 /** Void plug over the far-cap door gap — edge rooms (n = +64) only: the corridor ends in dark. */
 export function farDoorPlugGeometry(): BufferGeometry {
@@ -150,20 +205,13 @@ export function farDoorPlugGeometry(): BufferGeometry {
 }
 
 export function Vestibule() {
-  const { shell, closets } = useMemo(
-    () => ({ shell: vestibuleStoneGeometry(), closets: closetDoorwaysGeometry() }),
-    [],
-  );
+  const shell = useMemo(() => vestibuleStoneGeometry(), []);
   return (
     <group>
       <mesh geometry={shell} material={stoneMaterial} />
-      <mesh geometry={closets} material={voidMaterial} />
-      {/* Right flank, past the closet doorway (which ends ~1.2 m in) so the
-          glass reads against stone, not against the closet's black recess. */}
-      <MirrorSurface
-        position={[HALF_W - 0.02, MIRROR_HEIGHT / 2 + 0.3, -(HEX_APOTHEM + 1.8)]}
-        rotationY={-Math.PI / 2}
-      />
+      {/* The facing mirror pair — placeholders here; RoomStream mounts the live
+          reflective pair for the current room (InfinityMirrors live). */}
+      <InfinityMirrors />
       <group position={[STAIR_AXIS_X, 0, STAIR_CENTER_Z]}>
         <Staircase />
       </group>
