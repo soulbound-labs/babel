@@ -1072,6 +1072,36 @@ grep -rn "\.suspend()" src/presentation/audio/ src/app/
 
 ---
 
+### Post-execution notes
+
+Execution session 2026-07-05 (commits `f7af5e7..8b4875f`). Phases 1–5 mechanical
+steps green; **paused at Step 5.3** (Rei's on-device walkthrough) — Phase 6
+doctrine review and the archive move are pending. Deviations from the letter of
+the spec:
+
+1. **Step 2.2 "look region" is canvas-attached, not a DOM overlay.** The spec
+   conflicts internally: §3's diagram and the §4.3 hit-exclusion insight put
+   look-drag on the canvas element (world touch surface), while Step 2.2
+   describes a viewport-covering DOM region — which would structurally swallow
+   the canvas-attached tap-pick of Step 3.2. Resolved in favor of the canvas;
+   `TouchControls` owns the listeners' lifecycle but binds them to the canvas
+   element (commit `c34b8cf`).
+2. **Splash gate is structural, not threaded state.** Step 4.2 delegated the
+   wiring choice; the narrowest is zero wiring — while the entry/pause splash
+   is visible it covers the canvas (zIndex 1000, pointer-events auto), so no
+   touch reaches the canvas-attached handlers. During the 1.6 s entry fade the
+   gates are open, matching desktop's post-lock fade semantics.
+3. **`isTouchPrimary` guards missing `matchMedia`** (not just missing
+   `window`) — jsdom mounts App without matchMedia; caught by the existing
+   world-scene smoke test.
+4. **`joystickVector` normalizes `-0` to `+0`** so the hard-deadzone
+   "exact zero" contract holds under `Object.is`.
+5. **Commit cadence**: per-phase signing was blocked by a locked 1Password
+   agent at every gate; phases landed as a batch afterwards with per-phase
+   boundaries preserved by file grouping (shared files landed with the phase
+   completing their seam: `WorldScene`/`BookReader` in phase 3, `App`/
+   `EntryOverlay` in phase 4 — every commit compiles standalone).
+
 ## 11. Change Log
 
 | Version | Date       | Changes                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
