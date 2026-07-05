@@ -20,6 +20,8 @@
  */
 import { useCallback, useEffect, useState } from 'react';
 
+import { isTouchPrimary } from '../presentation/input/capabilities';
+
 export type EntryOverlayProps = {
   /** Runs on the entry click — the same gesture that requests pointer lock (E2). */
   onEnter?: () => Promise<void>;
@@ -46,11 +48,24 @@ function requestPointerLockSafely(): void {
 
 export function EntryOverlay({ onEnter }: EntryOverlayProps) {
   const [phase, setPhase] = useState<Phase>('initial');
+  // Touch path (mobile spec §3.4): evaluated once at mount — no pointer-lock
+  // machinery anywhere on it; the desktop path below is byte-identical.
+  const [touchPrimary] = useState(() => isTouchPrimary());
   // True while the acquire-with-retry loop runs (set by a click, cleared by
   // lock ACQUIRE, lock loss, or attempt exhaustion).
   const [relocking, setRelocking] = useState(false);
 
   const enter = useCallback(() => {
+    if (touchPrimary) {
+      // The tap IS the activation gesture (iOS 13+ synthesizes a click with
+      // user activation): no lock request, no retry loop. Entry keeps the
+      // mood fade; the pause splash dismisses at once — no ACQUIRE to await.
+      void onEnter?.().catch(() => {
+        /* audio stays suspended; retried on the next tap (E2) */
+      });
+      setPhase((p) => (p === 'initial' ? 'fading' : 'hidden'));
+      return;
+    }
     setRelocking(true); // the acquire loop below carries the actual request
     void onEnter?.().catch(() => {
       /* audio stays suspended; retried on the next gesture (E2) */
@@ -58,7 +73,7 @@ export function EntryOverlay({ onEnter }: EntryOverlayProps) {
     // Entry only: the mood fade starts on the gesture. The pause splash does
     // NOT fade here — it dismisses on the confirmed ACQUIRE (see onLockChange).
     setPhase((p) => (p === 'initial' ? 'fading' : p));
-  }, [onEnter]);
+  }, [onEnter, touchPrimary]);
 
   // The acquire-with-retry loop: request now, and keep re-requesting on the
   // cadence until locked or out of attempts. Denials inside the post-Esc
@@ -110,6 +125,20 @@ export function EntryOverlay({ onEnter }: EntryOverlayProps) {
     };
   }, []);
 
+  // Touch pause signal (mobile spec §3.4): no pointer lock to lose, so
+  // backgrounding drives the 'returned' splash — the analog of lock loss.
+  // Never from 'initial' (nothing to pause yet), and the overlay NEVER closes
+  // the reader: an open book stays open underneath, same as Esc on desktop.
+  useEffect(() => {
+    if (!touchPrimary) return;
+    const onVisibilityChange = () => {
+      if (document.visibilityState !== 'hidden') return;
+      setPhase((p) => (p === 'initial' ? p : 'returned'));
+    };
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', onVisibilityChange);
+  }, [touchPrimary]);
+
   useEffect(() => {
     if (phase !== 'fading') return;
     const t = setTimeout(() => setPhase('hidden'), 1600);
@@ -122,13 +151,13 @@ export function EntryOverlay({ onEnter }: EntryOverlayProps) {
   // book: the pick handler requires the lock to ALREADY be held at
   // pointerdown, and this lock lands asynchronously after the click.
   useEffect(() => {
-    if (phase !== 'hidden') return;
+    if (phase !== 'hidden' || touchPrimary) return; // touch never relocks
     const onPointerDown = () => {
       if (document.pointerLockElement === null) setRelocking(true);
     };
     document.addEventListener('pointerdown', onPointerDown);
     return () => document.removeEventListener('pointerdown', onPointerDown);
-  }, [phase]);
+  }, [phase, touchPrimary]);
 
   if (phase === 'hidden') return null;
 
@@ -160,8 +189,12 @@ export function EntryOverlay({ onEnter }: EntryOverlayProps) {
         {phase === 'returned'
           ? relocking
             ? 'one moment…'
-            : 'Click to Continue'
-          : 'click to enter'}
+            : touchPrimary
+              ? 'Tap to Continue'
+              : 'Click to Continue'
+          : touchPrimary
+            ? 'tap to enter'
+            : 'click to enter'}
       </div>
     </div>
   );
