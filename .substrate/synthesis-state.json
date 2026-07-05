@@ -34,9 +34,10 @@
   "mobile": {
     "status": "complete",
     "started": "2026-07-05T09:07:05Z",
-    "completed-steps": [3, 4, 5, 6, 7, 8, 9],
+    "completed-steps": [3, 4, 5, 6, 7, 8, 9, 10],
     "context": "full",
     "note": "synthesized pre-archive at user request; spec still at docs/tasks/ongoing/mobile/ (Step 5.3 human gate + Phase 6 pending)",
-    "completed": "2026-07-05T09:10:10Z"
+    "completed": "2026-07-05T09:10:10Z",
+    "narrative-commit": "a900ffe"
   }
 }
