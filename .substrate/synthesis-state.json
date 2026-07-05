@@ -30,5 +30,13 @@
     "context": "full",
     "completed": "2026-07-04T01:55:00Z",
     "narrative-commit": "ae94c8bdb91be6ee914adcdb4e46261eff085b66"
+  },
+  "mobile": {
+    "status": "complete",
+    "started": "2026-07-05T09:07:05Z",
+    "completed-steps": [3, 4, 5, 6, 7, 8, 9],
+    "context": "full",
+    "note": "synthesized pre-archive at user request; spec still at docs/tasks/ongoing/mobile/ (Step 5.3 human gate + Phase 6 pending)",
+    "completed": "2026-07-05T09:10:10Z"
   }
 }
