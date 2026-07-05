@@ -1,9 +1,11 @@
 # Mobile touch controls — instrument sheet & checklist
 
-**Status:** prepared for Rei's on-device walkthrough (mobile spec Phase 5, Step
-5.3). Everything mechanical is derived or agent-verifiable; **the on-device
-walk, the tuning-log values, and the subjective verdict are Rei's to record
-live** — this file is the instrument sheet.
+**Status:** CLOSED 2026-07-05 at Rei's direction, after the round-4 on-device
+interaction pass (see §7). Items verified by that pass or by mechanical audit
+are ticked; items not individually re-walked at close carry waivers in §4.
+The four-round repair history (tap-to-open → READ button; the iOS
+`pointerLockElement === undefined` gate inversion) is recorded in
+`docs/doctrine/mobile-doctrine.md` and the spec's Post-execution notes.
 
 **Device (on-device pass):** iPhone 13 — iOS Safari + iOS Chrome (both WebKit).
 **Desktop reference machine (captures + regression):** Apple M3 Pro — the same
@@ -25,27 +27,34 @@ regression sweep.
 
 ## 1. Objective floor (binary — each ticks or gets a recorded waiver in §4)
 
-- [ ] Joystick renders entirely within the lower-left quadrant; never overlaps
-      the center third of the frame in either orientation.
-- [ ] ✕ renders only in reading mode, corner-anchored (top-right), and does
-      not overlap the open spread.
-- [ ] READ renders only while a book glows and the reader is closed
+- [x] Joystick renders entirely within the lower-left quadrant; never overlaps
+      the center third of the frame in either orientation. _(round-4 pass +
+      screen recording, portrait)_
+- [x] ✕ renders only in reading mode, corner-anchored (top-right), and does
+      not overlap the open spread. _(round-4 pass + recording)_
+- [x] READ renders only while a book glows and the reader is closed
       (lower-right, above the safe-area inset); it is the ONLY touch path
-      that opens a book — no canvas tap or drag ever opens one.
+      that opens a book — no canvas tap or drag ever opens one. _(round-4
+      pass; also pinned by jsdom tests)_
 - [ ] No HUD element occludes the shaft sightline (HUD confined to
-      edges/corners).
-- [ ] HUD does not mount on fine-pointer devices; desktop reticle/hover
-      behavior absent on touch.
-- [ ] Proximity glow inert under `?pose=N` and on fine-pointer devices.
-- [ ] `git diff` empty on: `HIGHLIGHT_TINT`/`HIGHLIGHT_MIX` values, desktop
+      edges/corners). _(waived — §4)_
+- [x] HUD does not mount on fine-pointer devices; desktop reticle/hover
+      behavior absent on touch. _(mechanical: jsdom mount tests +
+      `isPointerLocked` gates; hover requires the lock, unattainable on iOS)_
+- [x] Proximity glow inert under `?pose=N` and on fine-pointer devices.
+      _(mechanical: structural gates in `useBookProximityGlow`)_
+- [x] `git diff` empty on: `HIGHLIGHT_TINT`/`HIGHLIGHT_MIX` values, desktop
       `fov: 62` (via the `resolveFov` identity clause), `DEFAULT_ATMOSPHERE`,
-      `Bulbs.tsx` values, `dimensions.ts`.
+      `Bulbs.tsx` values, `dimensions.ts`. _(audited at `4716fc5`)_
 - [ ] Portrait: every sightline terminates in fog or geometry — no keyhole
-      reveal of horizon/sky.
+      reveal of horizon/sky. _(waived — §4)_
 - [ ] Desktop pose re-render `?pose=1..4` @ 1280×720 pixel-identical to
       `docs/mood/unit-03/pose-{1..4}.png` (the mechanical half of sign-off).
-- SHOULD: joystick visually recessive at rest (reduced idle opacity).
-- Evidence (not a gate): observed fps via `?debug` on the device: _pending_.
+      _(waived — §4; run before the next light/fog/material change)_
+- SHOULD: joystick visually recessive at rest (reduced idle opacity) —
+  present (`RING_INK` at 0.65 container opacity).
+- Evidence (not a gate): observed fps via `?debug` on the device: _not
+  recorded_.
 
 ## 2. Acceptance flow (from the brief — walk it in order, on the device)
 
@@ -71,16 +80,19 @@ regression sweep.
 
 ## 3. Tuning log (record finals; agent applies source edits + re-runs the gate)
 
-| Constant                   | Module                  | Initial | Final (on-device) |
-| -------------------------- | ----------------------- | ------- | ----------------- |
-| `TAP_SLOP_PX`              | `input/gestures.ts`     | 12      | _pending_         |
-| `SWIPE_MIN_PX`             | `input/gestures.ts`     | 48      | _pending_         |
-| `SWIPE_MAX_MS`             | `input/gestures.ts`     | 500     | _pending_         |
-| `TOUCH_LOOK_SENSITIVITY`   | `player/touch-input.ts` | 0.0045  | _pending_         |
-| `JOYSTICK_DEADZONE`        | `player/touch-input.ts` | 0.15    | _pending_         |
-| `PORTRAIT_FOV_MAX`         | `player/fov.ts`         | 85      | _pending_         |
-| `PROXIMITY_MAX_DISTANCE`   | `reading/proximity.ts`  | 1.2¹    | _pending_         |
-| `PROXIMITY_MIN_FACING_DOT` | `reading/proximity.ts`  | 0.5¹    | _pending_         |
+| Constant                   | Module                  | Initial | Final (on-device)   |
+| -------------------------- | ----------------------- | ------- | ------------------- |
+| `TAP_SLOP_PX`              | `input/gestures.ts`     | 12      | 12 (as-shipped)     |
+| `SWIPE_MIN_PX`             | `input/gestures.ts`     | 48      | 48 (as-shipped)     |
+| `SWIPE_MAX_MS`             | `input/gestures.ts`     | 500     | 500 (as-shipped)    |
+| `TOUCH_LOOK_SENSITIVITY`   | `player/touch-input.ts` | 0.0045  | 0.0045 (as-shipped) |
+| `JOYSTICK_DEADZONE`        | `player/touch-input.ts` | 0.15    | 0.15 (as-shipped)   |
+| `PORTRAIT_FOV_MAX`         | `player/fov.ts`         | 85      | 85 (as-shipped)     |
+| `PROXIMITY_MAX_DISTANCE`   | `reading/proximity.ts`  | 1.2¹    | 1.2                 |
+| `PROXIMITY_MIN_FACING_DOT` | `reading/proximity.ts`  | 0.5¹    | 0.5                 |
+
+Finals accepted implicitly by the round-4 pass (no re-tune requested);
+retune on demand and update this table if any value changes.
 
 ¹ Third cut (quick-spec 2026-07-05): 3.2/0.35 lit a book from everywhere;
 1.5/0.5 still glowed from SPAWN (shelf books are ~1.5–1.6 m from the room
@@ -89,9 +101,11 @@ from mid-room, and the READ affordance rides the glow.
 
 ## 4. Waiver table (any failed §1 item needs a row — never a silent pass)
 
-| Item | Waiver rationale | Date |
-| ---- | ---------------- | ---- |
-| —    | —                | —    |
+| Item                                          | Waiver rationale                                                                                                                                                                                                                  | Date       |
+| --------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
+| Shaft-sightline occlusion                     | Not individually re-walked at close (close directed by Rei after the round-4 interaction pass). HUD is corner-anchored by construction; joystick + READ both edge-bound.                                                          | 2026-07-05 |
+| Portrait keyhole (fog/geometry sightlines)    | Not individually re-walked at close. Portrait FOV is clamped (`PORTRAIT_FOV_MAX = 85`) and the round-4 recording (portrait) showed no sky/horizon reveal in the frames reviewed.                                                  | 2026-07-05 |
+| Desktop pose re-render compare (`?pose=1..4`) | Not run at close. Mitigations: knob `git diff` empty (`HIGHLIGHT_*`, fov 62 identity, `dimensions.ts`); glow + portrait FOV structurally inert on the capture rig. MUST run before the next change bordering light/fog/materials. | 2026-07-05 |
 
 ## 5. Watch-items (parked unless observed on-device — file beads if seen)
 
@@ -112,12 +126,17 @@ they qualify as references; skip if judged too heavy.
 
 ## 7. Sign-off (two-part)
 
-- **Mechanical (agent-verifiable):** pose pixel compare green + knob
-  `git diff` empty — _pending_.
+- **Mechanical (agent-verifiable):** knob `git diff` empty ✓ (audited at
+  `4716fc5`); pose pixel compare WAIVED (§4) — owed before the next
+  light/fog/material change.
 - **Subjective (Rei, on-device):** does the library still hold its mood in the
   hand — fog, glow, hush intact at arm's length?
 
-> Verdict: _pending — Rei, on-device walkthrough, <date>_
+> Verdict: PASS — Rei, iPhone 13 (WebKit), 2026-07-05, round-4 build
+> (`4716fc5`): enter without a book opening, look-drag pans, taps inert,
+> glow + READ at a shelf, READ opens, swipes turn, ✕ closes, walk on.
+> Confirmed "y" after the full interaction flow; unit closed at Rei's
+> direction with the §4 waivers recorded.
 
 ---
 

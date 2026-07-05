@@ -1102,6 +1102,38 @@ the spec:
    completing their seam: `WorldScene`/`BookReader` in phase 3, `App`/
    `EntryOverlay` in phase 4 — every commit compiles standalone).
 
+Quick-spec repair session 2026-07-05, post-Step-5.3 (commits `6d1b344`,
+`4716fc5`). The on-device pass FAILED as specified; four diagnosis rounds
+(the last cracked frame-by-frame from a screen recording) superseded parts of
+this spec:
+
+6. **§3.3 tap-to-open is DEAD — superseded by the READ button.** M-2's
+   premise ("touch handlers gated on `pointerLockElement === null`") was
+   broken on the target platform: iOS WebKit has no Pointer Lock API, the
+   property is **undefined**, and every strict null gate inverted on iPhone —
+   the desktop center-ray pick fired on every touch (the entry tap opened a
+   book), hover kept the center book lit, touch look/swipe were dead. All
+   gates now probe `isPointerLocked()` (`!= null`) in `capabilities.ts`
+   (`4716fc5`). Beyond the gate bug, tap-the-world proved un-gateable in a
+   room papered with books (two failed cuts): canvas taps never open —
+   `useBookProximityGlow` reports the glowing slot via `onGlowChange`, the
+   HUD shows a READ pill exactly then, and it opens through a new `openRef`
+   seam on `BookReader` (the ✕'s mirror). `useBookTapPick.ts` is deleted;
+   its spec steps (3.2, parts of 3.1) describe removed code.
+7. **Proximity constants are reach-scale**: 3.2 m/0.35 → 1.2 m/0.5 — shelf
+   books sit ~1.5–1.6 m from the ROOM CENTER, so anything ≥ 1.5 glows from
+   spawn. §3.3's "3.2 m" default was wrong for this geometry.
+8. **READ's hit target is deliberately TIGHT** (96 px zone, visible pill,
+   raised above Safari's floating bottom bar) — inverting §3.1's generous-
+   zone rule for consequential actions: an invisible generous zone ate
+   look-taps as book-opens.
+
+Binding record of the superseding contract: `docs/doctrine/mobile-doctrine.md`
+§1 (gate probe), §5 (tight-target corollary), §6 (glow-plus-READ), §9
+(gotchas). Verified on-device by Rei (round 4): enter without a book opening,
+look-drag pans (first time it ever worked on iOS), taps inert, glow+pill at a
+shelf, READ opens, swipes turn, ✕ closes.
+
 ## 11. Change Log
 
 | Version | Date       | Changes                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |

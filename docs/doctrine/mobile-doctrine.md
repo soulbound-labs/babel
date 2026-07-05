@@ -209,6 +209,13 @@ detection (`isTouchPrimary`) governs only what **mounts** — never runtime beha
 - On-device verification runs over `pnpm dev:lan` (plain http — everything this scheme needs
   works in insecure contexts). Device screenshots are NOT mood references; the desktop
   reference machine shoots captures (mood-gate doctrine).
+- **On-device diagnosis protocol** (what finally cracked the round-4 gate inversion): (1) a
+  tiny build-sentinel tag on the entry curtain, bumped per attempt — "is the device even
+  running this code?" must be answerable by eye; (2) when iOS cache is suspect, serve from a
+  FRESH PORT — a new origin gets a guaranteed-clean load, no cache folklore; (3) ask for a
+  screen recording and extract frames (`ffmpeg -vf fps=1`) — the failing interaction is
+  usually visible in one frame (a book open behind the fading curtain identified the
+  desktop pick firing on touch). Symptoms reported in words had misdirected three rounds.
 
 ## 9. Gotchas (symptom → cause → fix)
 
