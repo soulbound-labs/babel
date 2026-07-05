@@ -22,3 +22,17 @@ export function isTouchPrimary(env?: CapabilityEnv): boolean {
   }
   return env.matchMedia('(pointer: coarse)').matches && env.maxTouchPoints > 0;
 }
+
+/**
+ * Pointer lock held? THE gate probe for the desktop/touch disjunction (M-2) —
+ * never compare `document.pointerLockElement` against null directly.
+ *
+ * iOS WebKit has no Pointer Lock API: the property is UNDEFINED there, and a
+ * strict `=== null` reads undefined as "locked" — inverting EVERY gate on
+ * iPhone (desktop center-ray pick/hover ran on every touch; touch look/swipe
+ * were dead). jsdom returns null, so only real iOS exposes this. `!= null`
+ * reads both null and undefined as "not locked".
+ */
+export function isPointerLocked(doc: { pointerLockElement?: Element | null } = document): boolean {
+  return doc.pointerLockElement != null;
+}

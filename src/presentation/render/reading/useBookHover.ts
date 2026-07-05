@@ -20,6 +20,7 @@ import { useFrame } from '@react-three/fiber';
 import { useEffect, useMemo, useRef } from 'react';
 import { Raycaster, Vector2 } from 'three';
 
+import { isPointerLocked } from '../../input/capabilities';
 import { EYE_HEIGHT } from '../room/dimensions';
 import { applyHighlight, clearHighlight } from './highlight';
 import type { Highlighted } from './highlight';
@@ -55,7 +56,7 @@ export function useBookHover({ enabled }: UseBookHoverOptions): void {
 
     // Gate exactly as the pick does: only highlight when a click could land.
     if (!enabled()) return clear();
-    if (document.pointerLockElement === null) return clear();
+    if (!isPointerLocked()) return clear(); // never `=== null` — undefined on iOS reads as locked
     if (Math.abs(camera.position.y - EYE_HEIGHT) > FLOOR_EPSILON) return clear();
 
     const mesh = findCurrentRoomBookMesh(scene);

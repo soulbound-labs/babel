@@ -2,7 +2,7 @@
 
 > **Preload when** you touch `src/presentation/input/**`, `src/presentation/render/hud/**`,
 > the touch modules under `src/presentation/render/player/` (`touch-input.ts`, `fov.ts`) or
-> `src/presentation/render/reading/` (`useBookTapPick.ts`, `proximity.ts`,
+> `src/presentation/render/reading/` (`proximity.ts`,
 > `useBookProximityGlow.ts`), the visibility lifecycle (`audio/visibility-pause.ts`,
 > `EntryOverlay`'s touch path), or anything that fires on a coarse pointer. Siblings: the
 > world being driven is [`render-doctrine.md`](./render-doctrine.md) +
@@ -17,29 +17,33 @@ The touch scheme is a set of **additive writers into existing pure seams** — n
 downstream of input changes, and desktop behavior stays **byte-identical** (pinned by a
 fast-check boolean-path property, the FOV identity clause, and frozen-constant `git diff`
 checks). There is no mode switch and no forked pipeline: **both schemes are always live and
-are disjoint by lock state** — every desktop handler requires `pointerLockElement !== null`,
-every touch handler requires it `=== null`. On a hybrid device exactly one side of that
-disjunction can fire; neither can double-fire.
+are disjoint by lock state** — every desktop handler requires the lock HELD, every touch
+handler requires it FREE, probed exclusively through `isPointerLocked()` (capabilities.ts).
+NEVER compare `document.pointerLockElement` against null directly: iOS WebKit has no
+Pointer Lock API, the property is **undefined** there, and strict null comparisons invert
+every gate (round 4's on-device bug — desktop center-ray pick/hover fired on every touch,
+touch look/swipe were dead). On a hybrid device exactly one side of the disjunction can
+fire; neither can double-fire.
 
-The scheme: virtual joystick + drag-look feeding `LocomotionInput`, tap-to-open feeding the
-one `castBookPick` pipeline, swipes feeding the reader's pure `advance`/`retreat`, ✕ routing
-through `closeReader`, and `visibilitychange` as the pause signal (the touch analog of
-pointer-lock loss). Capability detection (`isTouchPrimary`) governs only what **mounts** —
-never runtime behavior branches.
+The scheme: virtual joystick + drag-look feeding `LocomotionInput`, the proximity glow +
+HUD READ button as the ONLY touch open path (canvas taps never open — §6), swipes feeding
+the reader's pure `advance`/`retreat`, ✕ routing through `closeReader`, and
+`visibilitychange` as the pause signal (the touch analog of pointer-lock loss). Capability
+detection (`isTouchPrimary`) governs only what **mounts** — never runtime behavior branches.
 
 ## 2. The frozen surfaces (consumed and owned)
 
 **Consumed (owned elsewhere — never reshape from here):**
 
-| Surface                                          | Where                                    | Rule                                                                          |
-| ------------------------------------------------ | ---------------------------------------- | ----------------------------------------------------------------------------- |
-| `LocomotionHandle { suspend, resume, state }`    | `render/player/LocomotionController.tsx` | touch never widens it; visibility pause uses it like any other suspender      |
-| `stepLocomotion` + `MAX_FRAME_DELTA`, `MAX_STEP` | `render/player/locomotion.ts`            | analog rides the existing clamps; they make resume-after-hide safe for free   |
-| `castBookPick` / `slotTransform` / INV-B1        | `render/reading/`, `render/room/`        | tap pick is the SAME body as the reticle pick — one pipeline, two ray origins |
-| `reader-state.ts` pure machine                   | `render/reading/`                        | swipes fire `advance`/`retreat` exactly once; refusal is the contract         |
-| `AudioBus` / `BusContext` (frozen API)           | `audio/audio-bus.ts`                     | visibility pause suspends the RAW ctx in App.tsx — the bus is never widened   |
-| `HIGHLIGHT_TINT` / `HIGHLIGHT_MIX`               | `render/reading/highlight.ts`            | one tint implementation shared by hover + glow, values frozen at the gate     |
-| Desktop `fov: 62`, `dimensions.ts`               | `render/`                                | reachable only through `resolveFov`'s exact identity clause (§4)              |
+| Surface                                          | Where                                    | Rule                                                                        |
+| ------------------------------------------------ | ---------------------------------------- | --------------------------------------------------------------------------- |
+| `LocomotionHandle { suspend, resume, state }`    | `render/player/LocomotionController.tsx` | touch never widens it; visibility pause uses it like any other suspender    |
+| `stepLocomotion` + `MAX_FRAME_DELTA`, `MAX_STEP` | `render/player/locomotion.ts`            | analog rides the existing clamps; they make resume-after-hide safe for free |
+| `resolveBookAddress` / `slotTransform` / INV-B1  | `render/reading/`, `render/room/`        | the READ open resolves the glowing slot through the SAME address pipeline   |
+| `reader-state.ts` pure machine                   | `render/reading/`                        | swipes fire `advance`/`retreat` exactly once; refusal is the contract       |
+| `AudioBus` / `BusContext` (frozen API)           | `audio/audio-bus.ts`                     | visibility pause suspends the RAW ctx in App.tsx — the bus is never widened |
+| `HIGHLIGHT_TINT` / `HIGHLIGHT_MIX`               | `render/reading/highlight.ts`            | one tint implementation shared by hover + glow, values frozen at the gate   |
+| Desktop `fov: 62`, `dimensions.ts`               | `render/`                                | reachable only through `resolveFov`'s exact identity clause (§4)            |
 
 **Owned here:**
 
@@ -56,8 +60,8 @@ never runtime behavior branches.
   for `aspect ≥ 1` (early return of the constant, no float arithmetic), horizontal-preserving
   derivation clamped to `PORTRAIT_FOV_MAX` below 1.
 - `src/presentation/render/hud/TouchControls.tsx` — the DOM HUD (§5).
-- `reading/useBookTapPick.ts` + `reading/proximity.ts` + `reading/useBookProximityGlow.ts` —
-  the glow-as-affordance tap contract (§6).
+- `reading/proximity.ts` + `reading/useBookProximityGlow.ts` + the `openRef` seam on
+  `BookReader` — the glow-plus-READ open contract (§6).
 - `src/presentation/audio/visibility-pause.ts` + the `suspendedByVisibility` flag in
   `App.tsx` — the pause lifecycle (§7).
 
@@ -127,18 +131,32 @@ never runtime behavior branches.
   binary checklist rows in `docs/mood/mobile/checklist.md` §1 — failed items need a recorded
   waiver, never a silent pass.
 
-## 6. Reading on touch — the glow IS the tap affordance
+## 6. Reading on touch — the glow advertises, the READ button opens
 
-- **Taps open ONLY the glowing book.** `useBookTapPick` accepts a pick iff the tap ray lands
-  on `nearestFacingSlot(cameraPose, slots)` — the SAME pure selector and constants
-  (`PROXIMITY_MAX_DISTANCE`, `PROXIMITY_MIN_FACING_DOT`) the proximity glow uses, so the
-  affordance and the action cannot disagree. Without this gate the unit was unplayable: in a
-  room papered wall-to-wall with books, every stray touch opened a reader (the on-device
-  "stuck opening books forever" loop, fixed in `6d1b344`). Desktop keeps its aim-anywhere
-  reticle — precision aim is its own affordance.
-- The tap pick is `castBookPick` with tap NDC — INV-B1 (current-room mesh only) lives in that
-  one body for both schemes. All desktop gates carry over: `enabled()`, floor epsilon, live
-  coordinate, reader closed, plus tap classification and lock-null.
+- **Canvas taps NEVER open a book.** Two on-device rounds proved tap-the-world unfixable
+  here: the room is papered wall-to-wall with books, so the tap target is always under your
+  finger. Round 1 (any ray hit opens) trapped the user in an open/close loop; round 2
+  (`isIntendedPick`, tap must hit the glowing slot — `6d1b344`) failed identically because
+  with `PROXIMITY_MAX_DISTANCE = 3.2 > 2×HEX_APOTHEM (≈1.73)` a book was ALWAYS glowing,
+  dead-center in view — precisely where look-taps land. No tap gate survives that geometry;
+  the open intent lives **off-canvas entirely**.
+- **The open path**: `useBookProximityGlow` selects `nearestFacingSlot` and reports it via
+  `onGlowChange`; the HUD shows the READ button exactly while a slot glows; READ routes
+  through `BookReader`'s `openRef` seam (the ✕'s mirror) into the same gated open body
+  (lock-null, floor epsilon, live coordinate, reader closed, `resolveBookAddress` on the
+  glowing slot). Glow and action share ONE selector by construction — what glows is what
+  opens. Desktop keeps its aim-anywhere reticle — precision aim is its own affordance.
+- **Proximity constants mean REACH, not room-scale**: `PROXIMITY_MAX_DISTANCE = 1.2`,
+  `PROXIMITY_MIN_FACING_DOT = 0.5` — "stepped up to this shelf, facing it". Shelf books
+  sit ~1.5–1.6 m from the ROOM CENTER, so any range ≥ 1.5 glows from spawn (round 3
+  on-device); nothing may glow from mid-room. Tunables, but tune within reach-scale.
+- **The READ hit target is TIGHT — deliberately breaking §5's zone-not-glyph rule.** That
+  rule is for harmless controls (a missed joystick grab costs nothing). An open is a
+  consequential action: a generous invisible zone eats look-taps as book-opens (round 3 —
+  an unseen 180×160 px bottom-right zone was "books open when I touch the joystick").
+  Misses on READ must fall through to a harmless look. Corollary: the pill must be
+  VISIBLY present (strong ink, glow shadow) and raised clear of Safari's floating bottom
+  bar — an invisible button with any hit area is worse than no button.
 - **Gestures are discrete triggers, never continuous drivers.** A recognized swipe fires
   `advance`/`retreat` exactly once; the bend animates on the machine clock
   (`READ_TURN_SECONDS`) exactly like a click-turn. NEVER map finger position onto
@@ -194,9 +212,11 @@ never runtime behavior branches.
 
 ## 9. Gotchas (symptom → cause → fix)
 
-- **Every touch opens a book; user trapped in open/close loop** → tap-pick accepted any book
-  the ray hit, in a world where every surface is books → gate the pick on the glowing slot
-  (`isIntendedPick`, same selector as the glow) — `6d1b344`.
+- **Every touch opens a book; user trapped in open/close loop** → tap-to-open cannot be
+  gated safely in a world where every surface is books: round 1 accepted any ray hit; round
+  2 (`6d1b344`) gated on the glowing slot but the glow's 3.2 m range lit a book everywhere,
+  dead-center in view → open intent moved off-canvas entirely (READ button riding the glow,
+  §6) and the glow tightened to reach-scale (1.5/0.5).
 - **Joystick invisible / touches near it open books** → nested opacity multiplied ink to
   nothing AND `bottom: 24` sat under Safari's floating bottom bar; misses landed on the
   canvas as taps → hot zone + safe-area anchoring + `RING_INK` — `6d1b344`.
@@ -215,8 +235,15 @@ never runtime behavior branches.
   state fires no `visibilitychange` → parked watch-item (checklist §5); every tap already
   retries `resume()`; candidate fix is `ctx.onstatechange → splash`.
 - **Both schemes fire on a hybrid (iPad + trackpad)** → a handler missing its lock gate →
-  every touch handler requires lock-null, every desktop handler lock-held; audit with the
+  every touch handler requires the lock FREE, every desktop handler HELD; audit with the
   mobile spec §9 greps.
+- **On iPhone: desktop pick/hover fire on every touch, a book opens on the ENTRY TAP,
+  look-drag and swipes are dead, the center book stays "auto-preselected"** → iOS WebKit
+  has no Pointer Lock API; `document.pointerLockElement` is UNDEFINED, so `=== null`
+  (desktop gates) never matches and `!== null` (touch gates) always matches — every gate
+  inverted, on iOS only; jsdom returns null so no test caught it → probe through
+  `isPointerLocked()` (`!= null`), never a strict null comparison. Round 4, the root cause
+  under all three earlier rounds.
 
 ## 10. Pointers
 

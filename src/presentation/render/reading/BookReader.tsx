@@ -54,7 +54,7 @@ import {
 import { slotTransform } from '../room/instancing';
 import { mustMerge } from '../room/Room';
 import type { LocomotionHandle } from '../player/LocomotionController';
-import { isTouchPrimary } from '../../input/capabilities';
+import { isPointerLocked, isTouchPrimary } from '../../input/capabilities';
 import { classifySwipe } from '../../input/gestures';
 import type { TouchTracePoint } from '../../input/gestures';
 import {
@@ -84,11 +84,11 @@ import {
 } from './reader-state';
 import type { ReaderEvent, ReaderState, ReadingPhase, SurfaceModeLike } from './reader-state';
 import { GLOW_OFFSET, glowIntensityAt, READING_GLOW } from './reading-light';
+import { resolveBookAddress } from './book-address';
 import { useBookHover } from './useBookHover';
 import { useBookProximityGlow } from './useBookProximityGlow';
-import { useBookPick } from './useBookPick';
+import { findCurrentRoomBookMesh, useBookPick } from './useBookPick';
 import type { BookPick } from './useBookPick';
-import { useBookTapPick } from './useBookTapPick';
 import type { AudioBus } from '../../audio/audio-bus';
 import { startPageRustle } from '../../audio/page-rustle';
 import type { PageRustleHandle } from '../../audio/page-rustle';
@@ -151,8 +151,17 @@ export type BookReaderProps = {
    * through the SAME close ordering (INV-B6), never a parallel path.
    */
   closeRef?: RefObject<(() => void) | null>;
+  /**
+   * The touch OPEN seam (the ✕'s mirror): populated with "open the glowing
+   * book" while the reader is closed, null while open. The HUD's READ button
+   * routes through this — canvas taps NEVER open a book (two on-device rounds
+   * proved tap-the-world unfixable in a room papered with books).
+   */
+  openRef?: RefObject<(() => void) | null>;
   /** Open/close transitions only — the HUD swaps joystick ↔ ✕ on this. */
   onReadingChange?: (open: boolean) => void;
+  /** Glow transitions (true while a slot glows) — the HUD shows READ on this. */
+  onGlowChange?: (active: boolean) => void;
   /** The Unit 03 bus — page rustle is "just more emitters" (§4.5). */
   audioBus?: AudioBus;
   /** The shared app-lifetime context; absent in CI/jsdom — rustle skipped. */
@@ -168,12 +177,15 @@ export type BookReaderProps = {
 export function BookReader({
   handleRef,
   closeRef,
+  openRef,
   onReadingChange,
+  onGlowChange,
   audioBus,
   audioCtx,
   pinned,
 }: BookReaderProps) {
   const camera = useThree((s) => s.camera);
+  const scene = useThree((s) => s.scene);
   const gl = useThree((s) => s.gl);
 
   const machineRef = useRef<ReaderState>(CLOSED_READER);
@@ -360,21 +372,44 @@ export function BookReader({
     onPick,
   });
 
-  // Touch twin of the pick (mobile spec §3.3): both always mounted; the lock
-  // gates make them disjoint (M-2 — desktop needs lock HELD, touch lock NULL).
-  useBookTapPick({
-    enabled: interactionEnabled,
-    coordinate: liveCoordinate,
-    onPick,
-  });
-
   // The reticle "invisible pointer" highlight: the book a click would open
   // lights up a little (shares the pick's gate exactly).
   useBookHover({ enabled: interactionEnabled });
 
+  // Touch OPEN path: the proximity glow selects the slot, the HUD's READ
+  // button (via openRef) opens exactly that slot. Canvas taps never open —
+  // in a room papered with books every stray touch raycasts into a shelf,
+  // and two on-device rounds showed no tap gate survives that geometry.
+  const glowSlotRef = useRef<number | null>(null);
+  const handleGlowChange = useCallback(
+    (slot: number | null) => {
+      glowSlotRef.current = slot;
+      onGlowChange?.(slot !== null);
+    },
+    [onGlowChange],
+  );
+
   // Touch twin of the hover (mobile spec §3.3): nearest-facing proximity glow,
   // touch-primary + pose-inert by construction — never lit on the capture rig.
-  useBookProximityGlow({ enabled: interactionEnabled });
+  useBookProximityGlow({ enabled: interactionEnabled, onGlowChange: handleGlowChange });
+
+  // The READ open body: same gates as a pick (M-2 lock-null side, floor,
+  // live coordinate, reader closed) resolved for the GLOWING slot — glow and
+  // action cannot disagree, and both ride the one resolveBookAddress pipeline.
+  const openGlowingBook = useCallback(() => {
+    if (isPointerLocked()) return; // touch side only (M-2)
+    if (!interactionEnabled()) return;
+    if (surfaceMode() !== 'floor') return; // §4.3 floor gate
+    const slot = glowSlotRef.current;
+    if (slot === null) return;
+    const liveCoord = liveCoordinate();
+    if (liveCoord === null) return;
+    const mesh = findCurrentRoomBookMesh(scene);
+    if (mesh === null) return;
+    const address = resolveBookAddress(liveCoord, { dn: 0, dfloor: 0 }, slot);
+    if (address === null) return;
+    onPick({ address, slot, mesh });
+  }, [interactionEnabled, liveCoordinate, onPick, scene, surfaceMode]);
 
   // --- Page rustle (§4.5): ONE positional emitter per reading session ---
   // Create-in-body / dispose-in-cleanup; keyed on the open/close transition
@@ -421,17 +456,19 @@ export function BookReader({
   const readingOpenNow = display !== null;
   useEffect(() => {
     if (closeRef) closeRef.current = readingOpenNow ? closeReader : null;
+    if (openRef) openRef.current = readingOpenNow ? null : openGlowingBook;
     onReadingChange?.(readingOpenNow);
     return () => {
       if (closeRef) closeRef.current = null;
+      if (openRef) openRef.current = null;
     };
-  }, [closeRef, onReadingChange, readingOpenNow, closeReader]);
+  }, [closeRef, openRef, onReadingChange, readingOpenNow, closeReader, openGlowingBook]);
 
   // Reading-mode input (attached only while a book is up).
   useEffect(() => {
     if (display === null) return;
     const onPointerDown = (event: PointerEvent) => {
-      if (document.pointerLockElement === null) return;
+      if (!isPointerLocked()) return; // never `=== null` — undefined on iOS reads as locked
       if (event.button === 0) {
         turnNext();
       } else if (event.button === 2) {
@@ -442,7 +479,7 @@ export function BookReader({
     // Q closes (E1-consistent: only while locked). Deliberately NOT Esc — that
     // is the browser's lock exit and pauses to the splash instead (see header).
     const onKeyDown = (event: KeyboardEvent) => {
-      if (document.pointerLockElement === null) return;
+      if (!isPointerLocked()) return;
       if (event.code === 'KeyQ') closeReader();
     };
     document.addEventListener('pointerdown', onPointerDown);
@@ -473,7 +510,7 @@ export function BookReader({
       t: e.timeStamp,
     });
     const onPointerDown = (e: PointerEvent) => {
-      if (document.pointerLockElement !== null) return; // M-2: touch is lock-null only
+      if (isPointerLocked()) return; // M-2: touch is unlocked-side only
       traces.set(e.pointerId, [point(e)]);
     };
     const onPointerMove = (e: PointerEvent) => {
@@ -484,7 +521,7 @@ export function BookReader({
       traces.delete(e.pointerId);
       if (!trace) return;
       trace.push(point(e));
-      if (document.pointerLockElement !== null) return;
+      if (isPointerLocked()) return;
       const swipe = classifySwipe(trace);
       if (swipe === 'left') turnNext();
       else if (swipe === 'right') turnPrev();

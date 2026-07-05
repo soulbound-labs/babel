@@ -19,6 +19,7 @@ import { InstancedMesh, Raycaster, Vector2 } from 'three';
 import type { Camera, Object3D } from 'three';
 
 import type { Coordinate, LineAddress } from '../../../domain/entities';
+import { isPointerLocked } from '../../input/capabilities';
 import { EYE_HEIGHT } from '../room/dimensions';
 import { resolveBookAddress } from './book-address';
 
@@ -94,7 +95,7 @@ export function useBookPick({ enabled, coordinate, onPick }: UseBookPickOptions)
 
     const onPointerDown = (event: PointerEvent) => {
       if (event.button !== 0) return;
-      if (document.pointerLockElement === null) return; // E1: input only while locked
+      if (!isPointerLocked()) return; // E1: input only while locked (never `=== null` — undefined on iOS)
       if (!enabled()) return;
       // Floor gate (§4.3): standing on the slab, not mid-stair.
       if (Math.abs(camera.position.y - EYE_HEIGHT) > FLOOR_EPSILON) return;

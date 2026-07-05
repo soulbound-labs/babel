@@ -7,9 +7,16 @@
  */
 export type Vec3Like = { x: number; y: number; z: number };
 
-/** Named tunables — final values are an on-device judgment (Phase 5). */
-export const PROXIMITY_MAX_DISTANCE = 3.2;
-export const PROXIMITY_MIN_FACING_DOT = 0.35;
+/**
+ * Named tunables — final values are an on-device judgment (Phase 5).
+ * REACH, not room-scale: HEX_APOTHEM ≈ 1.73 and shelf books sit ~1.5–1.6 m
+ * from the ROOM CENTER, so any range ≥ 1.5 keeps a book glowing from spawn
+ * (the 3.2/0.35 first cut glowed permanently; the 1.5 second cut still glowed
+ * at spawn — both on-device). 1.2/0.5 ≈ "stepped up to this shelf, facing
+ * it": nothing glows from mid-room.
+ */
+export const PROXIMITY_MAX_DISTANCE = 1.2;
+export const PROXIMITY_MIN_FACING_DOT = 0.5;
 
 export function nearestFacingSlot(
   pose: { position: Vec3Like; forward: Vec3Like },

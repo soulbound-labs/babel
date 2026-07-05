@@ -13,17 +13,17 @@ const pose = { position: { x: 0, y: 1.7, z: 0 }, forward: { x: 0, y: 0, z: -1 } 
 describe('nearestFacingSlot', () => {
   it('picks the expected slot straight ahead', () => {
     const slots = [
-      { slot: 7, position: { x: 0, y: 1.7, z: -2 } },
-      { slot: 9, position: { x: 0, y: 1.7, z: -3 } },
+      { slot: 7, position: { x: 0, y: 1.7, z: -0.8 } },
+      { slot: 9, position: { x: 0, y: 1.7, z: -1.1 } },
     ];
     expect(nearestFacingSlot(pose, slots, OPTS)).toBe(7);
   });
 
   it('the nearest of several facing candidates wins', () => {
     const slots = [
-      { slot: 1, position: { x: 0.5, y: 1.7, z: -2.5 } },
-      { slot: 2, position: { x: -0.2, y: 1.7, z: -1.2 } },
-      { slot: 3, position: { x: 0, y: 1.7, z: -3.0 } },
+      { slot: 1, position: { x: 0.4, y: 1.7, z: -0.9 } },
+      { slot: 2, position: { x: -0.2, y: 1.7, z: -0.7 } },
+      { slot: 3, position: { x: 0, y: 1.7, z: -1.1 } },
     ];
     expect(nearestFacingSlot(pose, slots, OPTS)).toBe(2);
   });
@@ -39,8 +39,8 @@ describe('nearestFacingSlot', () => {
   });
 
   it('facing threshold: at the dot boundary is accepted, below is rejected', () => {
-    // A candidate at distance 2 whose direction has dot exactly minFacingDot.
-    const d = 2;
+    // A candidate inside maxDistance whose direction has dot exactly minFacingDot.
+    const d = PROXIMITY_MAX_DISTANCE * 0.8;
     const dot = PROXIMITY_MIN_FACING_DOT;
     const lateral = Math.sqrt(1 - dot * dot);
     const at = { slot: 6, position: { x: lateral * d, y: 1.7, z: -dot * d } };

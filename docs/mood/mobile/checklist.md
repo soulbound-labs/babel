@@ -10,11 +10,13 @@ live** — this file is the instrument sheet.
 rig that shot every committed reference; device screenshots are NOT references.
 
 **Controls (touch scheme under test):** virtual joystick lower-left = walk
-(magnitude = speed) · one-finger drag on the world = look · tap a nearby
-glowing book = pull & open · swipe left = next page, swipe right = previous ·
-✕ (top-right, reading only) = close and walk on · backgrounding the tab =
-pause splash + audio suspend; the return tap resumes. Desktop mouse+keyboard
-scheme unchanged — verify side-by-side in the regression sweep.
+(magnitude = speed) · one-finger drag on the world = look · walk up to a
+shelf → nearest facing book glows → **READ button (lower-right)** pulls &
+opens it — canvas taps never open a book · swipe left = next page, swipe
+right = previous · ✕ (top-right, reading only) = close and walk on ·
+backgrounding the tab = pause splash + audio suspend; the return tap resumes.
+Desktop mouse+keyboard scheme unchanged — verify side-by-side in the
+regression sweep.
 
 **How to run:** `pnpm dev:lan`, open the printed `Network:` URL on the iPhone
 (same Wi-Fi). Plain http is expected and sufficient for this unit.
@@ -27,6 +29,9 @@ scheme unchanged — verify side-by-side in the regression sweep.
       the center third of the frame in either orientation.
 - [ ] ✕ renders only in reading mode, corner-anchored (top-right), and does
       not overlap the open spread.
+- [ ] READ renders only while a book glows and the reader is closed
+      (lower-right, above the safe-area inset); it is the ONLY touch path
+      that opens a book — no canvas tap or drag ever opens one.
 - [ ] No HUD element occludes the shaft sightline (HUD confined to
       edges/corners).
 - [ ] HUD does not mount on fine-pointer devices; desktop reticle/hover
@@ -49,8 +54,11 @@ scheme unchanged — verify side-by-side in the regression sweep.
 3. Drag-look a full circle; simultaneous joystick + look with two fingers.
 4. Walk the stair helix up one floor and back down (joystick control through
    the tight turns).
-5. Approach a shelf → the nearest facing book glows.
-6. Tap the glowing book → it pulls, opens, glyphs stream.
+5. Approach a shelf → the nearest facing book glows AND the READ button
+   appears (lower-right); step back / face away → both retract.
+6. Tap READ → the glowing book pulls, opens, glyphs stream. Then confirm the
+   loop is dead: taps and drags on the world (walking, looking, near shelves)
+   never open a book.
 7. Swipe left (next page) and swipe right (previous) — turns animate on the
    machine clock, refused mid-stream without feedback.
 8. ✕ closes the book — walking resumes exactly where it was.
@@ -71,8 +79,13 @@ scheme unchanged — verify side-by-side in the regression sweep.
 | `TOUCH_LOOK_SENSITIVITY`   | `player/touch-input.ts` | 0.0045  | _pending_         |
 | `JOYSTICK_DEADZONE`        | `player/touch-input.ts` | 0.15    | _pending_         |
 | `PORTRAIT_FOV_MAX`         | `player/fov.ts`         | 85      | _pending_         |
-| `PROXIMITY_MAX_DISTANCE`   | `reading/proximity.ts`  | 3.2     | _pending_         |
-| `PROXIMITY_MIN_FACING_DOT` | `reading/proximity.ts`  | 0.35    | _pending_         |
+| `PROXIMITY_MAX_DISTANCE`   | `reading/proximity.ts`  | 1.2¹    | _pending_         |
+| `PROXIMITY_MIN_FACING_DOT` | `reading/proximity.ts`  | 0.5¹    | _pending_         |
+
+¹ Third cut (quick-spec 2026-07-05): 3.2/0.35 lit a book from everywhere;
+1.5/0.5 still glowed from SPAWN (shelf books are ~1.5–1.6 m from the room
+center). 1.2/0.5 means "stepped up to this shelf, facing it" — nothing glows
+from mid-room, and the READ affordance rides the glow.
 
 ## 4. Waiver table (any failed §1 item needs a row — never a silent pass)
 

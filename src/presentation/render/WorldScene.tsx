@@ -119,7 +119,11 @@ export function WorldScene({
   // Reading-mode seam to the DOM HUD (mobile spec §3.3): BookReader populates
   // the close ref while open and signals open/close transitions.
   const readerCloseRef = useRef<(() => void) | null>(null);
+  // The OPEN mirror (quick-spec 2026-07-05): BookReader populates it while the
+  // reader is closed; the HUD's READ button is the ONLY touch path that opens.
+  const readerOpenRef = useRef<(() => void) | null>(null);
   const [readingOpen, setReadingOpen] = useState(false);
+  const [glowActive, setGlowActive] = useState(false);
 
   return (
     <>
@@ -152,6 +156,8 @@ export function WorldScene({
         <BookReader
           handleRef={readerHandleRef}
           closeRef={readerCloseRef}
+          openRef={readerOpenRef}
+          onGlowChange={setGlowActive}
           onReadingChange={(open) => {
             setReadingOpen(open);
             onReadingChange?.(open);
@@ -165,6 +171,8 @@ export function WorldScene({
         touchInput={touchInputRef}
         readingOpen={readingOpen}
         onCloseReading={() => readerCloseRef.current?.()}
+        glowActive={glowActive}
+        onOpenReading={() => readerOpenRef.current?.()}
       />
     </>
   );

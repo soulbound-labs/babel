@@ -13,7 +13,8 @@ import type { TouchInputState } from '@/presentation/render/player/touch-input';
  * HUD structure pins (mobile spec §6): mounts iff touch-primary, joystick
  * touches never reach a sibling canvas-element listener (structural
  * hit-exclusion), ✕ exists only in reading mode and routes to the close
- * callback. Gesture MATH is node-tested in touch-input.spec.ts — jsdom here
+ * callback, READ exists only while a book glows and is the ONLY touch open
+ * path. Gesture MATH is node-tested in touch-input.spec.ts — jsdom here
  * only pins mounting + event topology.
  */
 function stubCapability(coarse: boolean, maxTouchPoints: number) {
@@ -56,13 +57,25 @@ describe('TouchControls', () => {
   it('mounts the joystick iff touch-primary', () => {
     stubCapability(true, 5);
     const c1 = mount(
-      <TouchControls touchInput={touchRef()} readingOpen={false} onCloseReading={() => {}} />,
+      <TouchControls
+        touchInput={touchRef()}
+        readingOpen={false}
+        onCloseReading={() => {}}
+        glowActive={false}
+        onOpenReading={() => {}}
+      />,
     );
     expect(c1.querySelector('[data-touch-joystick]')).not.toBeNull();
 
     stubCapability(false, 0);
     const c2 = mount(
-      <TouchControls touchInput={touchRef()} readingOpen={false} onCloseReading={() => {}} />,
+      <TouchControls
+        touchInput={touchRef()}
+        readingOpen={false}
+        onCloseReading={() => {}}
+        glowActive={false}
+        onOpenReading={() => {}}
+      />,
     );
     expect(c2.querySelector('[data-touch-joystick]')).toBeNull();
     expect(c2.innerHTML).toBe('');
@@ -74,7 +87,13 @@ describe('TouchControls', () => {
     const container = mount(
       <>
         <canvas />
-        <TouchControls touchInput={touchRef()} readingOpen={false} onCloseReading={() => {}} />
+        <TouchControls
+          touchInput={touchRef()}
+          readingOpen={false}
+          onCloseReading={() => {}}
+          glowActive={false}
+          onOpenReading={() => {}}
+        />
       </>,
     );
     const canvas = container.querySelector('canvas');
@@ -92,12 +111,24 @@ describe('TouchControls', () => {
     stubCapability(true, 5);
     const onClose = vi.fn();
     const walking = mount(
-      <TouchControls touchInput={touchRef()} readingOpen={false} onCloseReading={onClose} />,
+      <TouchControls
+        touchInput={touchRef()}
+        readingOpen={false}
+        onCloseReading={onClose}
+        glowActive={false}
+        onOpenReading={() => {}}
+      />,
     );
     expect(walking.querySelector('[data-touch-close-reading]')).toBeNull();
 
     const reading = mount(
-      <TouchControls touchInput={touchRef()} readingOpen={true} onCloseReading={onClose} />,
+      <TouchControls
+        touchInput={touchRef()}
+        readingOpen={true}
+        onCloseReading={onClose}
+        glowActive={false}
+        onOpenReading={() => {}}
+      />,
     );
     expect(reading.querySelector('[data-touch-joystick]')).toBeNull();
     const close = reading.querySelector('[data-touch-close-reading]');
@@ -106,10 +137,90 @@ describe('TouchControls', () => {
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
+  it('renders READ only while a book glows and the reader is closed', () => {
+    stubCapability(true, 5);
+    const noGlow = mount(
+      <TouchControls
+        touchInput={touchRef()}
+        readingOpen={false}
+        onCloseReading={() => {}}
+        glowActive={false}
+        onOpenReading={() => {}}
+      />,
+    );
+    expect(noGlow.querySelector('[data-touch-open-reading]')).toBeNull();
+
+    const glowing = mount(
+      <TouchControls
+        touchInput={touchRef()}
+        readingOpen={false}
+        onCloseReading={() => {}}
+        glowActive={true}
+        onOpenReading={() => {}}
+      />,
+    );
+    expect(glowing.querySelector('[data-touch-open-reading]')).not.toBeNull();
+
+    const reading = mount(
+      <TouchControls
+        touchInput={touchRef()}
+        readingOpen={true}
+        onCloseReading={() => {}}
+        glowActive={true}
+        onOpenReading={() => {}}
+      />,
+    );
+    expect(reading.querySelector('[data-touch-open-reading]')).toBeNull();
+  });
+
+  it('READ opens on a tap, refuses a drag, and never leaks to the canvas', () => {
+    stubCapability(true, 5);
+    const onOpen = vi.fn();
+    const canvasSpy = vi.fn();
+    const container = mount(
+      <>
+        <canvas />
+        <TouchControls
+          touchInput={touchRef()}
+          readingOpen={false}
+          onCloseReading={() => {}}
+          glowActive={true}
+          onOpenReading={onOpen}
+        />
+      </>,
+    );
+    container.querySelector('canvas')?.addEventListener('pointerdown', canvasSpy);
+    const read = container.querySelector('[data-touch-open-reading]');
+    expect(read).not.toBeNull();
+
+    // Tap: down + up within slop → opens once, nothing reaches the canvas.
+    read?.dispatchEvent(
+      new MouseEvent('pointerdown', { bubbles: true, clientX: 100, clientY: 100 }),
+    );
+    read?.dispatchEvent(new MouseEvent('pointerup', { bubbles: true, clientX: 102, clientY: 99 }));
+    expect(onOpen).toHaveBeenCalledTimes(1);
+    expect(canvasSpy).not.toHaveBeenCalled();
+
+    // Drag: down + up far apart → a lost look-drag, never an open.
+    read?.dispatchEvent(
+      new MouseEvent('pointerdown', { bubbles: true, clientX: 100, clientY: 100 }),
+    );
+    read?.dispatchEvent(new MouseEvent('pointerup', { bubbles: true, clientX: 180, clientY: 40 }));
+    expect(onOpen).toHaveBeenCalledTimes(1);
+  });
+
   it('visibilitychange → hidden zeroes movement and deactivates the scheme', () => {
     stubCapability(true, 5);
     const ref = touchRef();
-    mount(<TouchControls touchInput={ref} readingOpen={false} onCloseReading={() => {}} />);
+    mount(
+      <TouchControls
+        touchInput={ref}
+        readingOpen={false}
+        onCloseReading={() => {}}
+        glowActive={false}
+        onOpenReading={() => {}}
+      />,
+    );
     ref.current.active = true;
     ref.current.analog.f = 0.7;
     ref.current.analog.r = -0.2;

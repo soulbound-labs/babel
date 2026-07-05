@@ -15,7 +15,8 @@
 import { useEffect, useRef, useState } from 'react';
 import type { RefObject } from 'react';
 
-import { isTouchPrimary } from '../../input/capabilities';
+import { isPointerLocked, isTouchPrimary } from '../../input/capabilities';
+import { TAP_SLOP_PX } from '../../input/gestures';
 import { joystickVector } from '../player/touch-input';
 import type { TouchInputState } from '../player/touch-input';
 
@@ -23,6 +24,10 @@ export type TouchControlsProps = {
   touchInput: RefObject<TouchInputState | null>;
   readingOpen: boolean;
   onCloseReading: () => void;
+  /** True while a book glows — the READ affordance shows exactly then. */
+  glowActive: boolean;
+  /** Routes to BookReader's openRef — opens the glowing book, nothing else. */
+  onOpenReading: () => void;
 };
 
 /** Warm vellum monochrome, recessive at rest — the world's tone, not a game skin. */
@@ -32,7 +37,13 @@ const RING_INK = 'rgba(138, 133, 120, 0.8)';
 const JOYSTICK_SIZE = 128;
 const THUMB_SIZE = 44;
 
-export function TouchControls({ touchInput, readingOpen, onCloseReading }: TouchControlsProps) {
+export function TouchControls({
+  touchInput,
+  readingOpen,
+  onCloseReading,
+  glowActive,
+  onOpenReading,
+}: TouchControlsProps) {
   const [touchPrimary] = useState(() => isTouchPrimary());
   const baseRef = useRef<HTMLDivElement | null>(null);
   const thumbRef = useRef<HTMLDivElement | null>(null);
@@ -42,6 +53,7 @@ export function TouchControls({ touchInput, readingOpen, onCloseReading }: Touch
   const lookPointer = useRef<number | null>(null);
   const lookLast = useRef({ x: 0, y: 0 });
   const readingOpenRef = useRef(readingOpen);
+  const openStart = useRef<{ id: number; x: number; y: number } | null>(null);
 
   const resetThumb = () => {
     if (thumbRef.current) thumbRef.current.style.transform = 'translate(0px, 0px)';
@@ -74,7 +86,7 @@ export function TouchControls({ touchInput, readingOpen, onCloseReading }: Touch
     const canvas = document.querySelector('canvas');
     if (!canvas) return;
     const onDown = (e: PointerEvent) => {
-      if (document.pointerLockElement !== null) return; // touch gate (M-2)
+      if (isPointerLocked()) return; // touch gate (M-2) — never `!== null`, undefined on iOS
       if (readingOpenRef.current) return; // reading swipes belong to BookReader (§3.3)
       if (lookPointer.current !== null) return;
       lookPointer.current = e.pointerId;
@@ -122,6 +134,7 @@ export function TouchControls({ touchInput, readingOpen, onCloseReading }: Touch
       }
       joyPointer.current = null;
       lookPointer.current = null;
+      openStart.current = null;
       resetThumb();
     };
     document.addEventListener('visibilitychange', onVisibility);
@@ -224,6 +237,74 @@ export function TouchControls({ touchInput, readingOpen, onCloseReading }: Touch
                 willChange: 'transform',
               }}
             />
+          </div>
+        </div>
+      )}
+      {!readingOpen && glowActive && (
+        /* READ: the open affordance, mirror of the ✕. Canvas taps NEVER open
+           a book — in a world papered with books, the tap target is always
+           under your finger (two failed on-device rounds, 2026-07-05); the
+           open intent lives off-canvas entirely.
+
+           TIGHT hit target, deliberately breaking the joystick's zone-not-
+           glyph rule: an open is a CONSEQUENTIAL action, so a miss must fall
+           through to a harmless look — round 3 on-device showed an invisible
+           180×160 zone eating right-thumb look-taps as book-opens. Raised
+           well clear of Safari's floating bottom bar (which also swallowed
+           the pill's visibility at bottom:20). */
+        <div
+          data-touch-open-reading
+          onPointerDown={(e) => {
+            if (openStart.current !== null) return;
+            openStart.current = { id: e.pointerId, x: e.clientX, y: e.clientY };
+            try {
+              e.currentTarget.setPointerCapture(e.pointerId);
+            } catch {
+              /* jsdom / older WebKit: capture is an optimization, not a requirement */
+            }
+          }}
+          onPointerUp={(e) => {
+            const start = openStart.current;
+            openStart.current = null;
+            if (!start || start.id !== e.pointerId) return;
+            if (Math.hypot(e.clientX - start.x, e.clientY - start.y) > TAP_SLOP_PX) return;
+            onOpenReading();
+          }}
+          onPointerCancel={() => {
+            openStart.current = null;
+          }}
+          style={{
+            position: 'fixed',
+            right: 'calc(12px + env(safe-area-inset-right, 0px))',
+            bottom: 'calc(96px + env(safe-area-inset-bottom, 0px))',
+            width: 96,
+            height: 96,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 500,
+            touchAction: 'none',
+            userSelect: 'none',
+          }}
+        >
+          <div
+            style={{
+              width: 68,
+              height: 68,
+              borderRadius: '50%',
+              border: `1.5px solid rgba(207, 201, 184, 0.9)`,
+              background: 'rgba(8, 7, 6, 0.6)',
+              color: '#cfc9b8',
+              fontSize: '0.8rem',
+              fontFamily: 'Georgia, serif',
+              letterSpacing: '0.12em',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              boxShadow: '0 0 12px rgba(255, 207, 154, 0.25)',
+            }}
+          >
+            read
           </div>
         </div>
       )}
