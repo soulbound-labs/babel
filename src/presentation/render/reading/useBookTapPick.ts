@@ -11,19 +11,41 @@
  * reaches these listeners (structural splash gate; App threads no state).
  */
 import { useThree } from '@react-three/fiber';
-import { useEffect, useRef } from 'react';
-import { Raycaster, Vector2 } from 'three';
+import { useEffect, useMemo, useRef } from 'react';
+import { Raycaster, Vector2, Vector3 } from 'three';
 
 import type { Coordinate } from '../../../domain/entities';
 import { isTouchPrimary } from '../../input/capabilities';
 import { classifyTouch } from '../../input/gestures';
 import type { TouchTracePoint } from '../../input/gestures';
 import { EYE_HEIGHT } from '../room/dimensions';
+import { BOOK_COUNT, slotTransform } from '../room/instancing';
+import { nearestFacingSlot, PROXIMITY_MAX_DISTANCE, PROXIMITY_MIN_FACING_DOT } from './proximity';
+import type { Vec3Like } from './proximity';
 import { castBookPick } from './useBookPick';
 import type { BookPick } from './useBookPick';
 
 /** Standing-on-slab tolerance — same gate as useBookPick (§4.3). */
 const FLOOR_EPSILON = 0.02;
+
+/**
+ * Intent gate: a tap opens a book only when its ray lands on the slot the
+ * proximity glow is advertising (nearest facing, within reach — the SAME
+ * pure selector and constants as useBookProximityGlow). Without this, every
+ * stray touch in a room papered wall-to-wall with books opens a reader —
+ * the on-device "stuck opening books forever" loop.
+ */
+export function isIntendedPick(
+  pick: { slot: number },
+  pose: { position: Vec3Like; forward: Vec3Like },
+  slots: ReadonlyArray<{ slot: number; position: Vec3Like }>,
+): boolean {
+  const intended = nearestFacingSlot(pose, slots, {
+    maxDistance: PROXIMITY_MAX_DISTANCE,
+    minFacingDot: PROXIMITY_MIN_FACING_DOT,
+  });
+  return intended !== null && intended === pick.slot;
+}
 
 /** Tap client coords → NDC against the canvas rect. Pure, exact at corners. */
 export function tapToNdc(
@@ -50,6 +72,16 @@ export function useBookTapPick({ enabled, coordinate, onPick }: UseBookTapPickOp
   const scene = useThree((s) => s.scene);
   const gl = useThree((s) => s.gl);
   const raycasterRef = useRef<Raycaster | null>(null);
+  const forward = useMemo(() => new Vector3(), []);
+  // Same room-local slot positions the glow uses (current room at the origin).
+  const slots = useMemo(
+    () =>
+      Array.from({ length: BOOK_COUNT }, (_, slot) => ({
+        slot,
+        position: slotTransform(slot).position,
+      })),
+    [],
+  );
 
   useEffect(() => {
     if (!isTouchPrimary()) return;
@@ -97,7 +129,11 @@ export function useBookTapPick({ enabled, coordinate, onPick }: UseBookTapPickOp
         liveCoordinate,
         raycaster,
       );
-      if (pick !== null) onPick(pick);
+      if (pick === null) return;
+      // Only the glowing book opens — the glow IS the tap affordance.
+      camera.getWorldDirection(forward);
+      if (!isIntendedPick(pick, { position: camera.position, forward }, slots)) return;
+      onPick(pick);
     };
 
     canvas.addEventListener('pointerdown', onPointerDown);
@@ -110,5 +146,5 @@ export function useBookTapPick({ enabled, coordinate, onPick }: UseBookTapPickOp
       canvas.removeEventListener('pointerup', onPointerUp);
       canvas.removeEventListener('pointercancel', onPointerCancel);
     };
-  }, [camera, scene, gl, enabled, coordinate, onPick]);
+  }, [camera, scene, gl, enabled, coordinate, onPick, forward, slots]);
 }

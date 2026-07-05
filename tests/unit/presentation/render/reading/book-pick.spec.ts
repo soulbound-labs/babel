@@ -12,7 +12,7 @@ import {
 
 import { ORIGIN } from '@/domain/entities';
 import { castBookPick, findCurrentRoomBookMesh } from '@/presentation/render/reading/useBookPick';
-import { tapToNdc } from '@/presentation/render/reading/useBookTapPick';
+import { isIntendedPick, tapToNdc } from '@/presentation/render/reading/useBookTapPick';
 
 /**
  * INV-B1 pinned through the castBookPick extraction: the ray set is the
@@ -91,6 +91,30 @@ describe('castBookPick (INV-B1: current-room mesh only)', () => {
     const hit = castBookPick(new Vector2(projected.x, projected.y), camera, scene, ORIGIN);
     expect(hit).not.toBeNull();
     expect(hit?.slot).toBe(0);
+  });
+});
+
+describe('isIntendedPick (the tap opens ONLY the glowing book)', () => {
+  // Eye at origin looking down -z; slot 3 is the nearest facing candidate.
+  const pose = { position: { x: 0, y: 1.7, z: 0 }, forward: { x: 0, y: 0, z: -1 } };
+  const slots = [
+    { slot: 3, position: { x: 0.2, y: 1.7, z: -1.5 } }, // glowing: nearest, in front
+    { slot: 9, position: { x: -0.4, y: 1.7, z: -2.8 } }, // in front but farther
+    { slot: 12, position: { x: 0, y: 1.7, z: 2 } }, // behind
+  ];
+
+  it('accepts a tap that lands on the glowing (nearest-facing) slot', () => {
+    expect(isIntendedPick({ slot: 3 }, pose, slots)).toBe(true);
+  });
+
+  it('refuses a tap on any other book — no more stray-touch openings', () => {
+    expect(isIntendedPick({ slot: 9 }, pose, slots)).toBe(false);
+    expect(isIntendedPick({ slot: 12 }, pose, slots)).toBe(false);
+  });
+
+  it('refuses every tap when nothing is in glow range (no intended slot)', () => {
+    const farPose = { position: { x: 0, y: 1.7, z: 50 }, forward: { x: 0, y: 0, z: -1 } };
+    expect(isIntendedPick({ slot: 3 }, farPose, slots)).toBe(false);
   });
 });
 

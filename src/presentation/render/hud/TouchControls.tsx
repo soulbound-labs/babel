@@ -27,6 +27,8 @@ export type TouchControlsProps = {
 
 /** Warm vellum monochrome, recessive at rest — the world's tone, not a game skin. */
 const HUD_INK = 'rgba(138, 133, 120, 0.5)';
+/** The joystick needs to be FINDABLE on a dark scene (on-device finding, 2026-07-05). */
+const RING_INK = 'rgba(138, 133, 120, 0.8)';
 const JOYSTICK_SIZE = 128;
 const THUMB_SIZE = 44;
 
@@ -147,8 +149,13 @@ export function TouchControls({ touchInput, readingOpen, onCloseReading }: Touch
   return (
     <>
       {!readingOpen && (
+        /* Hot zone: a generous invisible touch target in the lower-left —
+           thumbs miss a 128 px ring, and every miss used to land on the
+           canvas as a book-opening tap (on-device finding, 2026-07-05).
+           Touches anywhere in the zone drive the joystick relative to the
+           visible ring's center. Hit-exclusion stays structural: the zone is
+           a canvas sibling. */
         <div
-          ref={baseRef}
           data-touch-joystick
           onPointerDown={(e) => {
             const base = baseRef.current;
@@ -158,7 +165,7 @@ export function TouchControls({ touchInput, readingOpen, onCloseReading }: Touch
             joyCenter.current = { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
             joyRadius.current = Math.max(rect.width / 2, 1);
             try {
-              base.setPointerCapture(e.pointerId);
+              e.currentTarget.setPointerCapture(e.pointerId);
             } catch {
               /* jsdom / older WebKit: capture is an optimization, not a requirement */
             }
@@ -178,34 +185,46 @@ export function TouchControls({ touchInput, readingOpen, onCloseReading }: Touch
           }}
           style={{
             position: 'fixed',
-            left: 24,
-            bottom: 24,
-            width: JOYSTICK_SIZE,
-            height: JOYSTICK_SIZE,
-            borderRadius: '50%',
-            border: `1px solid ${HUD_INK}`,
-            background: 'rgba(10, 9, 8, 0.25)',
+            left: 0,
+            bottom: 0,
+            width: 'min(50vw, 220px)',
+            height: 'min(35vh, 220px)',
             zIndex: 500,
             touchAction: 'none',
             userSelect: 'none',
-            opacity: 0.5,
           }}
         >
           <div
-            ref={thumbRef}
+            ref={baseRef}
             style={{
               position: 'absolute',
-              left: '50%',
-              top: '50%',
-              width: THUMB_SIZE,
-              height: THUMB_SIZE,
-              marginLeft: -THUMB_SIZE / 2,
-              marginTop: -THUMB_SIZE / 2,
+              // Safe-area aware: clear iOS Safari's floating bottom bar.
+              left: 'calc(20px + env(safe-area-inset-left, 0px))',
+              bottom: 'calc(20px + env(safe-area-inset-bottom, 0px))',
+              width: JOYSTICK_SIZE,
+              height: JOYSTICK_SIZE,
               borderRadius: '50%',
-              background: HUD_INK,
-              willChange: 'transform',
+              border: `1px solid ${RING_INK}`,
+              background: 'rgba(10, 9, 8, 0.35)',
+              opacity: 0.65,
             }}
-          />
+          >
+            <div
+              ref={thumbRef}
+              style={{
+                position: 'absolute',
+                left: '50%',
+                top: '50%',
+                width: THUMB_SIZE,
+                height: THUMB_SIZE,
+                marginLeft: -THUMB_SIZE / 2,
+                marginTop: -THUMB_SIZE / 2,
+                borderRadius: '50%',
+                background: RING_INK,
+                willChange: 'transform',
+              }}
+            />
+          </div>
         </div>
       )}
       {readingOpen && (
