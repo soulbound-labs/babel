@@ -9,6 +9,7 @@
   },
   "scripts": {
     "dev": "concurrently -n vite,convex \"vite\" \"convex dev\"",
+    "dev:lan": "concurrently -n vite,convex \"vite --host\" \"convex dev\"",
     "build": "vite build",
     "compile": "tsc --noEmit && tsc --noEmit -p tsconfig.scripts.json",
     "lint": "eslint .",

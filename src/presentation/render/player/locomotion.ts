@@ -24,6 +24,8 @@ export type LocomotionInput = {
   /** Mouselook orientation — yaw unbounded, pitch clamped by the step. */
   yaw: number;
   pitch: number;
+  /** Analog move override (touch joystick): camera-frame, |vector| ≤ 1. Absent or zero ⇒ boolean path. */
+  analog?: { f: number; r: number };
 };
 
 export type SurfaceMode = 'floor' | 'stair';
@@ -87,16 +89,28 @@ export function stepLocomotion(
   // Wish velocity in the camera's ground plane (0 yaw faces -z).
   const fx = -Math.sin(yaw);
   const fz = -Math.cos(yaw);
-  const move = {
-    f: (input.forward ? 1 : 0) - (input.back ? 1 : 0),
-    r: (input.right ? 1 : 0) - (input.left ? 1 : 0),
-  };
-  let wishX = fx * move.f + -fz * move.r;
-  let wishZ = fz * move.f + fx * move.r;
-  const wishLen = Math.hypot(wishX, wishZ);
-  if (wishLen > 0) {
-    wishX = (wishX / wishLen) * WALK_SPEED;
-    wishZ = (wishZ / wishLen) * WALK_SPEED;
+  const analog = input.analog;
+  const analogMag = analog === undefined ? 0 : Math.hypot(analog.f, analog.r);
+  let wishX: number;
+  let wishZ: number;
+  if (analog !== undefined && analogMag > 0) {
+    // Analog path (touch joystick): magnitude scales wish speed, defensively
+    // clamped — touch can never outrun the keyboard (wish ∈ [0, WALK_SPEED]).
+    const scale = (Math.min(1, analogMag) / analogMag) * WALK_SPEED;
+    wishX = (fx * analog.f + -fz * analog.r) * scale;
+    wishZ = (fz * analog.f + fx * analog.r) * scale;
+  } else {
+    const move = {
+      f: (input.forward ? 1 : 0) - (input.back ? 1 : 0),
+      r: (input.right ? 1 : 0) - (input.left ? 1 : 0),
+    };
+    wishX = fx * move.f + -fz * move.r;
+    wishZ = fz * move.f + fx * move.r;
+    const wishLen = Math.hypot(wishX, wishZ);
+    if (wishLen > 0) {
+      wishX = (wishX / wishLen) * WALK_SPEED;
+      wishZ = (wishZ / wishLen) * WALK_SPEED;
+    }
   }
 
   // Damped approach to the wish velocity.

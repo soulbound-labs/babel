@@ -54,6 +54,12 @@ Every change is bound to the doctrines registered in `docs/doctrine/doctrine-man
   drei, the parallel spread reveal, the spine-pivot bend the type rides, the
   reading-mode-under-`suspend()` seam, and the pointer-lock input contract (Q closes, Esc pauses).
   Read before touching `src/presentation/render/reading/**` or the vendored reading font.
+- `docs/doctrine/mobile-doctrine.md` — the additive touch scheme: capability-gated DOM HUD, pure
+  gesture classifiers, the analog `LocomotionInput` seam, the glow-as-affordance tap contract,
+  canvas-attached world handlers (structural hit-exclusion), and `visibilitychange` as the touch
+  pause signal — desktop byte-identical, schemes disjoint by lock state. Read before touching
+  `src/presentation/input/**`, `src/presentation/render/hud/**`, or anything that fires on a
+  coarse pointer.
 - `docs/doctrine/mood-gate-doctrine.md` — pinning subjective quality: deterministic poses + committed
   reference captures + objective checklist floor, the human as instrument, and the re-render-and-compare
   regression protocol. Read before changing anything that touches light, fog, or materials.

@@ -16,7 +16,7 @@
  */
 import { useFrame, useThree } from '@react-three/fiber';
 import { useContext, useEffect, useImperativeHandle, useMemo, useRef } from 'react';
-import type { Ref } from 'react';
+import type { Ref, RefObject } from 'react';
 
 import { ORIGIN } from '../../../domain/entities';
 import type { Coordinate } from '../../../domain/entities';
@@ -35,6 +35,8 @@ import { EYE_HEIGHT } from '../room/dimensions';
 import { clampPitch, createLocomotionState, stepLocomotion } from './locomotion';
 import type { LocomotionInput, LocomotionState } from './locomotion';
 import { createPresencePublisher } from './presence-publisher';
+import { TOUCH_LOOK_SENSITIVITY } from './touch-input';
+import type { TouchInputState } from './touch-input';
 
 /** Frozen camera seam (§4.7) — consumed by Units 04 and 05. */
 export interface LocomotionHandle {
@@ -68,6 +70,8 @@ export type LocomotionControllerProps = {
   footsteps?: FootstepsHandle;
   /** Called synchronously inside the frame on an accepted commit (§4.2.1 step 3). */
   onCommit?: (coordinate: Coordinate) => void;
+  /** Touch scheme state (mobile spec §3.1) — drained each frame pre-step; absent on desktop. */
+  touchInput?: RefObject<TouchInputState | null>;
 };
 
 export function LocomotionController({
@@ -76,6 +80,7 @@ export function LocomotionController({
   handleRef,
   footsteps,
   onCommit,
+  touchInput,
 }: LocomotionControllerProps) {
   const camera = useThree((s) => s.camera);
   const presencePort = useContext(PresenceContext);
@@ -174,6 +179,21 @@ export function LocomotionController({
   useFrame((frame, delta) => {
     const state = stateRef.current;
     if (state.suspended) return; // camera belongs to the suspender
+
+    // Touch scheme (mobile spec §3.1): drain accumulated look deltas
+    // (consume-and-zero, mirroring the movementX path) and merge the analog
+    // vector. Absent or inactive touch leaves the desktop path untouched.
+    const touch = touchInput?.current;
+    if (touch !== undefined && touch !== null && touch.active) {
+      const input = inputRef.current;
+      input.yaw -= touch.lookDX * TOUCH_LOOK_SENSITIVITY;
+      input.pitch = clampPitch(input.pitch - touch.lookDY * TOUCH_LOOK_SENSITIVITY);
+      touch.lookDX = 0;
+      touch.lookDY = 0;
+      input.analog = { ...touch.analog };
+    } else {
+      inputRef.current.analog = undefined;
+    }
 
     const prev = state.player.localPosition;
     stateRef.current = stepLocomotion(state, inputRef.current, delta, collisionRef.current);

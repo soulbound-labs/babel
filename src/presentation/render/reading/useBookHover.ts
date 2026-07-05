@@ -18,44 +18,35 @@
 import { useThree } from '@react-three/fiber';
 import { useFrame } from '@react-three/fiber';
 import { useEffect, useMemo, useRef } from 'react';
-import { Color, Raycaster, Vector2 } from 'three';
-import type { InstancedMesh } from 'three';
+import { Raycaster, Vector2 } from 'three';
 
+import { isPointerLocked } from '../../input/capabilities';
 import { EYE_HEIGHT } from '../room/dimensions';
+import { applyHighlight, clearHighlight } from './highlight';
+import type { Highlighted } from './highlight';
 import { findCurrentRoomBookMesh } from './useBookPick';
 
 /** Standing-on-slab tolerance (m) — identical gate to useBookPick (§4.3). */
 const FLOOR_EPSILON = 0.02;
 /** ~12 Hz: one raycast per tick is cheap, but no need to churn every frame. */
 const HOVER_INTERVAL = 1 / 12;
-/** Warm tone the leather leans toward when lit; a little, not a spotlight. */
-const HIGHLIGHT_TINT = new Color('#ffcf9a');
-/** How far the base leather is pulled toward the tint (0 = none, 1 = full). */
-const HIGHLIGHT_MIX = 0.55;
 
 export type UseBookHoverOptions = {
   /** Same gate the pick uses (e.g. reader closed and not pinned). */
   enabled: () => boolean;
 };
 
-type Hovered = { mesh: InstancedMesh; slot: number; base: Color };
-
 export function useBookHover({ enabled }: UseBookHoverOptions): void {
   const camera = useThree((s) => s.camera);
   const scene = useThree((s) => s.scene);
   const raycaster = useMemo(() => new Raycaster(), []);
   const center = useMemo(() => new Vector2(0, 0), []);
-  const scratch = useMemo(() => ({ base: new Color(), lit: new Color() }), []);
-  const hovered = useRef<Hovered | null>(null);
+  const hovered = useRef<Highlighted | null>(null);
   const sinceLast = useRef(0);
 
   /** Restore the highlighted instance's original colour and forget it. */
   const clear = () => {
-    const h = hovered.current;
-    if (!h) return;
-    h.mesh.setColorAt(h.slot, h.base);
-    if (h.mesh.instanceColor) h.mesh.instanceColor.needsUpdate = true;
-    hovered.current = null;
+    hovered.current = clearHighlight(hovered.current);
   };
 
   useFrame((_, delta) => {
@@ -65,7 +56,7 @@ export function useBookHover({ enabled }: UseBookHoverOptions): void {
 
     // Gate exactly as the pick does: only highlight when a click could land.
     if (!enabled()) return clear();
-    if (document.pointerLockElement === null) return clear();
+    if (!isPointerLocked()) return clear(); // never `=== null` — undefined on iOS reads as locked
     if (Math.abs(camera.position.y - EYE_HEIGHT) > FLOOR_EPSILON) return clear();
 
     const mesh = findCurrentRoomBookMesh(scene);
@@ -80,13 +71,7 @@ export function useBookHover({ enabled }: UseBookHoverOptions): void {
     if (current && current.mesh === mesh && current.slot === slot) return;
 
     clear(); // restore whatever was lit before moving the highlight
-    // Read the true base back (never the formula) so restore is exact and
-    // survives any future per-room colour variation.
-    mesh.getColorAt(slot, scratch.base);
-    scratch.lit.copy(scratch.base).lerp(HIGHLIGHT_TINT, HIGHLIGHT_MIX);
-    mesh.setColorAt(slot, scratch.lit);
-    mesh.instanceColor.needsUpdate = true;
-    hovered.current = { mesh, slot, base: scratch.base.clone() };
+    hovered.current = applyHighlight(mesh, slot);
   });
 
   // Leave no book lit if the reader unmounts mid-hover.

@@ -8,18 +8,23 @@
  * third-party, and presentation modules — never adapters or convex.
  */
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
-import { useCallback, useMemo, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { Ref, RefObject } from 'react';
-import { Vector3 } from 'three';
+import { PerspectiveCamera, Vector3 } from 'three';
 
 import { ORIGIN } from '../../domain/entities';
 import type { Coordinate } from '../../domain/entities';
 import type { AudioBus } from '../audio/audio-bus';
 import type { FootstepsHandle } from '../audio/footsteps';
+import { isTouchPrimary } from '../input/capabilities';
 import { DebugStats } from './debug/DebugStats';
 import { parseDebugParam, parsePoseParam, SPAWN_POSE } from './debug/poses';
+import { TouchControls } from './hud/TouchControls';
 import { LocomotionController } from './player/LocomotionController';
 import type { LocomotionHandle } from './player/LocomotionController';
+import { resolveFov } from './player/fov';
+import { createTouchInputState } from './player/touch-input';
+import type { TouchInputState } from './player/touch-input';
 import { BookReader } from './reading/BookReader';
 import { EdgeVeil } from './world/EdgeVeil';
 import { RoomStream } from './world/RoomStream';
@@ -29,6 +34,25 @@ function assignRef<T>(ref: Ref<T> | undefined, value: T | null): void {
   if (!ref) return;
   if (typeof ref === 'function') ref(value as T);
   else (ref as RefObject<T | null>).current = value;
+}
+
+/**
+ * Portrait FOV (mobile spec §3.1): on resize only, write `resolveFov(aspect)`
+ * to the ONE existing camera. On aspect ≥ 1 this writes exactly 62 — a no-op
+ * by the identity clause, so desktop projection stays bit-identical.
+ */
+function PortraitFovDriver() {
+  const camera = useThree((s) => s.camera);
+  const size = useThree((s) => s.size);
+  useEffect(() => {
+    if (!(camera instanceof PerspectiveCamera)) return;
+    const fov = resolveFov(size.width / size.height);
+    if (camera.fov !== fov) {
+      camera.fov = fov;
+      camera.updateProjectionMatrix();
+    }
+  }, [camera, size]);
+  return null;
 }
 
 /** The camera drives the audio listener each frame (§4.6). */
@@ -55,9 +79,17 @@ export type WorldSceneProps = {
   audioCtx?: BaseAudioContext;
   /** Footsteps (§4.3) — the controller fires `step(surface)` on the stride cadence. */
   footsteps?: FootstepsHandle;
+  /** Reading open/close transitions (mobile spec §3.4) — App gates its visibility pause on this. */
+  onReadingChange?: (open: boolean) => void;
 };
 
-export function WorldScene({ locomotionRef, audioBus, audioCtx, footsteps }: WorldSceneProps = {}) {
+export function WorldScene({
+  locomotionRef,
+  audioBus,
+  audioCtx,
+  footsteps,
+  onReadingChange,
+}: WorldSceneProps = {}) {
   // Debug hooks (§7.1, E7): invalid ?pose is ignored — normal spawn.
   const search = window.location.search;
   const pose = parsePoseParam(search) ?? SPAWN_POSE;
@@ -78,38 +110,70 @@ export function WorldScene({ locomotionRef, audioBus, audioCtx, footsteps }: Wor
     },
     [locomotionRef],
   );
+  // Touch scheme (mobile spec §3.1): the shared input ref the HUD writes and
+  // the controller drains; null on desktop — the boolean path stays pristine.
+  const touchInputRef = useRef<TouchInputState | null>(null);
+  if (touchInputRef.current === null && isTouchPrimary()) {
+    touchInputRef.current = createTouchInputState();
+  }
+  // Reading-mode seam to the DOM HUD (mobile spec §3.3): BookReader populates
+  // the close ref while open and signals open/close transitions.
+  const readerCloseRef = useRef<(() => void) | null>(null);
+  // The OPEN mirror (quick-spec 2026-07-05): BookReader populates it while the
+  // reader is closed; the HUD's READ button is the ONLY touch path that opens.
+  const readerOpenRef = useRef<(() => void) | null>(null);
+  const [readingOpen, setReadingOpen] = useState(false);
+  const [glowActive, setGlowActive] = useState(false);
 
   return (
-    <Canvas
-      style={{ position: 'fixed', inset: 0, background: '#050507' }}
-      dpr={[1, 1.5]}
-      camera={{ fov: 62, near: 0.05, far: 60 }}
-    >
-      <LocomotionController
-        initialPose={pose}
-        initialCoordinate={initialCoordinate}
-        handleRef={teeLocomotionRef}
-        footsteps={footsteps}
-        onCommit={(c) => {
-          rebaseRef.current?.(c);
-          edgeVeilRef.current?.(c);
-        }}
+    <>
+      <Canvas
+        style={{ position: 'fixed', inset: 0, background: '#050507', touchAction: 'none' }}
+        dpr={[1, 1.5]}
+        camera={{ fov: 62, near: 0.05, far: 60 }}
+      >
+        <LocomotionController
+          initialPose={pose}
+          initialCoordinate={initialCoordinate}
+          handleRef={teeLocomotionRef}
+          footsteps={footsteps}
+          touchInput={touchInputRef}
+          onCommit={(c) => {
+            rebaseRef.current?.(c);
+            edgeVeilRef.current?.(c);
+          }}
+        />
+        <PortraitFovDriver />
+        {audioBus && <ListenerPoseDriver bus={audioBus} />}
+        {debug && <DebugStats />}
+        <EdgeVeil applyRef={edgeVeilRef} initialCoordinate={initialCoordinate} />
+        <RoomStream
+          rebaseRef={rebaseRef}
+          initialCoordinate={initialCoordinate}
+          audioBus={audioBus}
+          audioCtx={audioCtx}
+        />
+        <BookReader
+          handleRef={readerHandleRef}
+          closeRef={readerCloseRef}
+          openRef={readerOpenRef}
+          onGlowChange={setGlowActive}
+          onReadingChange={(open) => {
+            setReadingOpen(open);
+            onReadingChange?.(open);
+          }}
+          audioBus={audioBus}
+          audioCtx={audioCtx}
+          pinned={pose.book}
+        />
+      </Canvas>
+      <TouchControls
+        touchInput={touchInputRef}
+        readingOpen={readingOpen}
+        onCloseReading={() => readerCloseRef.current?.()}
+        glowActive={glowActive}
+        onOpenReading={() => readerOpenRef.current?.()}
       />
-      {audioBus && <ListenerPoseDriver bus={audioBus} />}
-      {debug && <DebugStats />}
-      <EdgeVeil applyRef={edgeVeilRef} initialCoordinate={initialCoordinate} />
-      <RoomStream
-        rebaseRef={rebaseRef}
-        initialCoordinate={initialCoordinate}
-        audioBus={audioBus}
-        audioCtx={audioCtx}
-      />
-      <BookReader
-        handleRef={readerHandleRef}
-        audioBus={audioBus}
-        audioCtx={audioCtx}
-        pinned={pose.book}
-      />
-    </Canvas>
+    </>
   );
 }

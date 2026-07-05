@@ -138,6 +138,29 @@ doctrines:
     triggers: [book, reading, glyph, troika, text, page, spread, turn, reveal, vellum, folio, font]
     layer-hint: frontend
 
+  - id: mobile
+    path: docs/doctrine/mobile-doctrine.md
+    pointers: [AGENTS.md]
+    summary: The additive touch scheme — capability-gated DOM HUD, pure gesture classifiers, the analog LocomotionInput seam, glow-as-affordance tap contract, canvas-attached world handlers (structural hit-exclusion), and visibilitychange as the touch pause signal. Desktop stays byte-identical; schemes are disjoint by lock state.
+    triggers:
+      [
+        mobile,
+        touch,
+        joystick,
+        gesture,
+        swipe,
+        tap,
+        hud,
+        pointer,
+        coarse,
+        portrait,
+        visibilitychange,
+        safe-area,
+        capability,
+        drag-look,
+      ]
+    layer-hint: frontend
+
   - id: mood-gate
     path: docs/doctrine/mood-gate-doctrine.md
     pointers: [AGENTS.md]
