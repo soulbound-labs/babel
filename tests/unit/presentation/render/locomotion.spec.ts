@@ -1,3 +1,4 @@
+import fc from 'fast-check';
 import { describe, expect, it } from 'vitest';
 
 import { ORIGIN } from '@/domain/entities';
@@ -107,6 +108,59 @@ describe('INV-R5 — seam integrity (pure step logic)', () => {
     const s3 = stepLocomotion(spawn(), idleInput(), 1 / 60);
     expect(s3.surface).toBe('floor');
     expect(s3.player.localPosition.y).toBe(EYE_HEIGHT);
+  });
+
+  it('analog property: absent ≡ explicit zero — the boolean path is character-identical', () => {
+    const angle = fc.double({ min: -Math.PI, max: Math.PI, noNaN: true, noDefaultInfinity: true });
+    fc.assert(
+      fc.property(
+        fc.record({
+          forward: fc.boolean(),
+          back: fc.boolean(),
+          left: fc.boolean(),
+          right: fc.boolean(),
+          yaw: angle,
+          pitch: angle,
+        }),
+        fc.integer({ min: 1, max: 30 }),
+        (base, steps) => {
+          let absent = spawn();
+          let zeroed = spawn();
+          for (let i = 0; i < steps; i++) {
+            absent = stepLocomotion(absent, { ...base, analog: undefined }, 1 / 60);
+            zeroed = stepLocomotion(zeroed, { ...base, analog: { f: 0, r: 0 } }, 1 / 60);
+          }
+          expect(zeroed).toEqual(absent);
+        },
+      ),
+    );
+  });
+
+  it('analog magnitude 0.5 settles to half walk speed', () => {
+    let s = spawn();
+    const input = idleInput({ analog: { f: 0.5, r: 0 } });
+    for (let i = 0; i < 120; i++) s = stepLocomotion(s, input, 1 / 60);
+    expect(Math.hypot(s.velocity.x, s.velocity.z)).toBeCloseTo(WALK_SPEED / 2, 3);
+  });
+
+  it('analog magnitude 2 clamps to walk speed (M-3: touch never outruns the keyboard)', () => {
+    let s = spawn();
+    const input = idleInput({ analog: { f: 2, r: 0 } });
+    for (let i = 0; i < 120; i++) s = stepLocomotion(s, input, 1 / 60);
+    expect(Math.hypot(s.velocity.x, s.velocity.z)).toBeCloseTo(WALK_SPEED, 3);
+  });
+
+  it('analog with delta 30 displaces at most WALK_SPEED × MAX_FRAME_DELTA', () => {
+    let s = spawn();
+    const input = idleInput({ analog: { f: 1, r: 0 } });
+    for (let i = 0; i < 20; i++) s = stepLocomotion(s, input, 1 / 60);
+    const before = s.player.localPosition;
+    s = stepLocomotion(s, input, 30);
+    const jump = Math.hypot(
+      s.player.localPosition.x - before.x,
+      s.player.localPosition.z - before.z,
+    );
+    expect(jump).toBeLessThanOrEqual(WALK_SPEED * MAX_FRAME_DELTA + 1e-9);
   });
 
   it('delta is clamped (E8): a stalled tab cannot teleport the player', () => {
