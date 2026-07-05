@@ -16,7 +16,7 @@
 import { useThree } from '@react-three/fiber';
 import { useEffect, useRef } from 'react';
 import { InstancedMesh, Raycaster, Vector2 } from 'three';
-import type { Object3D } from 'three';
+import type { Camera, Object3D } from 'three';
 
 import type { Coordinate, LineAddress } from '../../../domain/entities';
 import { EYE_HEIGHT } from '../room/dimensions';
@@ -59,6 +59,30 @@ export function findCurrentRoomBookMesh(root: Object3D): InstancedMesh | null {
   return found;
 }
 
+/**
+ * The one pick pipeline (INV-B1 lives HERE): current-room mesh only →
+ * raycast from `ndc` → `resolveBookAddress`. Desktop casts from screen
+ * center; the touch tap pick casts from tap NDC — same rules, one body.
+ */
+export function castBookPick(
+  ndc: Vector2,
+  camera: Camera,
+  scene: Object3D,
+  coordinate: Coordinate,
+  raycaster: Raycaster = new Raycaster(),
+): BookPick | null {
+  const mesh = findCurrentRoomBookMesh(scene);
+  if (mesh === null) return null;
+
+  raycaster.setFromCamera(ndc, camera);
+  const [hit] = raycaster.intersectObject(mesh, false);
+  if (!hit || hit.instanceId === undefined) return null;
+
+  const address = resolveBookAddress(coordinate, { dn: 0, dfloor: 0 }, hit.instanceId);
+  if (address === null) return null;
+  return { address, slot: hit.instanceId, mesh };
+}
+
 export function useBookPick({ enabled, coordinate, onPick }: UseBookPickOptions): void {
   const camera = useThree((s) => s.camera);
   const scene = useThree((s) => s.scene);
@@ -77,16 +101,9 @@ export function useBookPick({ enabled, coordinate, onPick }: UseBookPickOptions)
       const liveCoordinate = coordinate();
       if (liveCoordinate === null) return;
 
-      const mesh = findCurrentRoomBookMesh(scene);
-      if (mesh === null) return;
-
-      raycaster.setFromCamera(center, camera);
-      const [hit] = raycaster.intersectObject(mesh, false);
-      if (!hit || hit.instanceId === undefined) return;
-
-      const address = resolveBookAddress(liveCoordinate, { dn: 0, dfloor: 0 }, hit.instanceId);
-      if (address === null) return;
-      onPick({ address, slot: hit.instanceId, mesh });
+      const pick = castBookPick(center, camera, scene, liveCoordinate, raycaster);
+      if (pick === null) return;
+      onPick(pick);
     };
 
     document.addEventListener('pointerdown', onPointerDown);

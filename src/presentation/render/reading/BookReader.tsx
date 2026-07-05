@@ -54,6 +54,9 @@ import {
 import { slotTransform } from '../room/instancing';
 import { mustMerge } from '../room/Room';
 import type { LocomotionHandle } from '../player/LocomotionController';
+import { isTouchPrimary } from '../../input/capabilities';
+import { classifySwipe } from '../../input/gestures';
+import type { TouchTracePoint } from '../../input/gestures';
 import {
   ATLAS_CHARS,
   createGlyphMaterial,
@@ -82,8 +85,10 @@ import {
 import type { ReaderEvent, ReaderState, ReadingPhase, SurfaceModeLike } from './reader-state';
 import { GLOW_OFFSET, glowIntensityAt, READING_GLOW } from './reading-light';
 import { useBookHover } from './useBookHover';
+import { useBookProximityGlow } from './useBookProximityGlow';
 import { useBookPick } from './useBookPick';
 import type { BookPick } from './useBookPick';
+import { useBookTapPick } from './useBookTapPick';
 import type { AudioBus } from '../../audio/audio-bus';
 import { startPageRustle } from '../../audio/page-rustle';
 import type { PageRustleHandle } from '../../audio/page-rustle';
@@ -140,6 +145,14 @@ type EndpointPose = { position: Vector3; quaternion: Quaternion };
 export type BookReaderProps = {
   /** The ONE frozen camera seam, shared with LocomotionController (§4.7). */
   handleRef: RefObject<LocomotionHandle | null>;
+  /**
+   * Reading-mode seam to the DOM HUD (mobile spec §3.3): populated with
+   * `closeReader` while a book is open, null otherwise — the ✕ button routes
+   * through the SAME close ordering (INV-B6), never a parallel path.
+   */
+  closeRef?: RefObject<(() => void) | null>;
+  /** Open/close transitions only — the HUD swaps joystick ↔ ✕ on this. */
+  onReadingChange?: (open: boolean) => void;
   /** The Unit 03 bus — page rustle is "just more emitters" (§4.5). */
   audioBus?: AudioBus;
   /** The shared app-lifetime context; absent in CI/jsdom — rustle skipped. */
@@ -152,8 +165,16 @@ export type BookReaderProps = {
   pinned?: { address: LineAddress; phase: ReadingPhase };
 };
 
-export function BookReader({ handleRef, audioBus, audioCtx, pinned }: BookReaderProps) {
+export function BookReader({
+  handleRef,
+  closeRef,
+  onReadingChange,
+  audioBus,
+  audioCtx,
+  pinned,
+}: BookReaderProps) {
   const camera = useThree((s) => s.camera);
+  const gl = useThree((s) => s.gl);
 
   const machineRef = useRef<ReaderState>(CLOSED_READER);
   /** Re-render trigger: open/close/page-settle only — never per frame. */
@@ -328,15 +349,32 @@ export function BookReader({ handleRef, audioBus, audioCtx, pinned }: BookReader
     [pinned],
   );
 
+  const liveCoordinate = useCallback(
+    () => handleRef.current?.state.coordinate ?? null,
+    [handleRef],
+  );
+
   useBookPick({
     enabled: interactionEnabled,
-    coordinate: useCallback(() => handleRef.current?.state.coordinate ?? null, [handleRef]),
+    coordinate: liveCoordinate,
+    onPick,
+  });
+
+  // Touch twin of the pick (mobile spec §3.3): both always mounted; the lock
+  // gates make them disjoint (M-2 — desktop needs lock HELD, touch lock NULL).
+  useBookTapPick({
+    enabled: interactionEnabled,
+    coordinate: liveCoordinate,
     onPick,
   });
 
   // The reticle "invisible pointer" highlight: the book a click would open
   // lights up a little (shares the pick's gate exactly).
   useBookHover({ enabled: interactionEnabled });
+
+  // Touch twin of the hover (mobile spec §3.3): nearest-facing proximity glow,
+  // touch-primary + pose-inert by construction — never lit on the capture rig.
+  useBookProximityGlow({ enabled: interactionEnabled });
 
   // --- Page rustle (§4.5): ONE positional emitter per reading session ---
   // Create-in-body / dispose-in-cleanup; keyed on the open/close transition
@@ -365,19 +403,39 @@ export function BookReader({ handleRef, audioBus, audioCtx, pinned }: BookReader
     }
   }, []);
 
+  // The two turn bodies, shared by desktop clicks AND touch swipes (mobile
+  // spec §3.3) — touch turns must not be silent, so the rustle lives here.
+  const turnNext = useCallback(() => {
+    const { state, events } = advance(machineRef.current);
+    machineRef.current = state;
+    fireRustle(events, state.address?.page ?? 0);
+  }, [fireRustle]);
+  const turnPrev = useCallback(() => {
+    const { state, events } = retreat(machineRef.current);
+    machineRef.current = state;
+    fireRustle(events, state.address?.page ?? 0);
+  }, [fireRustle]);
+
+  // Reading-mode seam to the DOM HUD (mobile spec §3.3): the ✕ routes through
+  // closeReader's exact ordering; the open/close signal swaps joystick ↔ ✕.
+  const readingOpenNow = display !== null;
+  useEffect(() => {
+    if (closeRef) closeRef.current = readingOpenNow ? closeReader : null;
+    onReadingChange?.(readingOpenNow);
+    return () => {
+      if (closeRef) closeRef.current = null;
+    };
+  }, [closeRef, onReadingChange, readingOpenNow, closeReader]);
+
   // Reading-mode input (attached only while a book is up).
   useEffect(() => {
     if (display === null) return;
     const onPointerDown = (event: PointerEvent) => {
       if (document.pointerLockElement === null) return;
       if (event.button === 0) {
-        const { state, events } = advance(machineRef.current);
-        machineRef.current = state;
-        fireRustle(events, state.address?.page ?? 0);
+        turnNext();
       } else if (event.button === 2) {
-        const { state, events } = retreat(machineRef.current);
-        machineRef.current = state;
-        fireRustle(events, state.address?.page ?? 0);
+        turnPrev();
       }
     };
     const onContextMenu = (event: Event) => event.preventDefault();
@@ -395,7 +453,61 @@ export function BookReader({ handleRef, audioBus, audioCtx, pinned }: BookReader
       document.removeEventListener('contextmenu', onContextMenu);
       document.removeEventListener('keydown', onKeyDown);
     };
-  }, [display, fireRustle, closeReader]);
+  }, [display, turnNext, turnPrev, closeReader]);
+
+  // Touch page turns (mobile spec §3.3): swipes on the canvas element while a
+  // book is up. A recognized swipe fires advance/retreat EXACTLY once; the
+  // bend animates on the machine clock — never finger-scrubbed. Refused
+  // swipes (mid-stream, at bounds) get no feedback: the pure functions'
+  // refusal IS the contract. While the splash is visible it covers the
+  // canvas, so no swipe reaches these listeners (structural gate).
+  useEffect(() => {
+    if (display === null || pinned !== undefined) return;
+    if (!isTouchPrimary()) return;
+    const canvas = gl.domElement;
+    const traces = new Map<number, TouchTracePoint[]>();
+    const point = (e: PointerEvent): TouchTracePoint => ({
+      pointerId: e.pointerId,
+      x: e.clientX,
+      y: e.clientY,
+      t: e.timeStamp,
+    });
+    const onPointerDown = (e: PointerEvent) => {
+      if (document.pointerLockElement !== null) return; // M-2: touch is lock-null only
+      traces.set(e.pointerId, [point(e)]);
+    };
+    const onPointerMove = (e: PointerEvent) => {
+      traces.get(e.pointerId)?.push(point(e));
+    };
+    const onPointerUp = (e: PointerEvent) => {
+      const trace = traces.get(e.pointerId);
+      traces.delete(e.pointerId);
+      if (!trace) return;
+      trace.push(point(e));
+      if (document.pointerLockElement !== null) return;
+      const swipe = classifySwipe(trace);
+      if (swipe === 'left') turnNext();
+      else if (swipe === 'right') turnPrev();
+    };
+    const onPointerCancel = (e: PointerEvent) => {
+      traces.delete(e.pointerId); // no stuck half-gesture (§3.3)
+    };
+    const onVisibility = () => {
+      if (document.visibilityState === 'hidden') traces.clear();
+    };
+    canvas.addEventListener('pointerdown', onPointerDown);
+    canvas.addEventListener('pointermove', onPointerMove);
+    canvas.addEventListener('pointerup', onPointerUp);
+    canvas.addEventListener('pointercancel', onPointerCancel);
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => {
+      canvas.removeEventListener('pointerdown', onPointerDown);
+      canvas.removeEventListener('pointermove', onPointerMove);
+      canvas.removeEventListener('pointerup', onPointerUp);
+      canvas.removeEventListener('pointercancel', onPointerCancel);
+      document.removeEventListener('visibilitychange', onVisibility);
+    };
+  }, [display, pinned, gl, turnNext, turnPrev]);
 
   useFrame((_, delta) => {
     const light = lightRef.current;
